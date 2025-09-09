@@ -377,6 +377,44 @@ const GameSearchApp = () => {
             <p>Search for games to see results</p>
           </div>
         )}
+
+        {/* 🔗 Other Projects Section */}
+        <div className="max-w-4xl mx-auto mt-16">
+          <h2 className="text-2xl font-bold text-white mb-6 text-center">
+            Other Projects
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <a
+              href="https://pdbypass.a7a8524.workers.dev/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
+            >
+              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
+                Pixeldrain Bypass
+              </h3>
+              <p className="text-sm text-gray-300">
+                Remove Pixeldrain download limits with a Cloudflare Worker proxy.
+              </p>
+            </a>
+
+            <a
+              href="https://cfrss.a7a8524.workers.dev/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
+            >
+              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
+                RSS Cloudflare Bypass
+              </h3>
+              <p className="text-sm text-gray-300">
+                Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
+              </p>
+            </a>
+          </div>
+        </div>
+
+        {/* Footer */}
         <div className="text-center mt-12 text-gray-400 text-sm">
           <p>Powered by Cloudflare Workers • Search across multiple game sources</p>
         </div>
