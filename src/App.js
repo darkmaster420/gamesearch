@@ -131,23 +131,23 @@ const GameSearchApp = () => {
             </div>
             
             {/* Site Filter */}
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex flex-wrap gap-3 justify-center">
               {[
-                { value: 'both', label: 'Both Sites' },
-                { value: 'skidrow', label: 'SkidRow' },
-                { value: 'freegog', label: 'FreeGOG' }
+                { value: 'both', label: 'Both Sites', color: 'from-purple-500 to-pink-500' },
+                { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
+                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' }
               ].map(option => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => setSiteFilter(option.value)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                     siteFilter === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                      ? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
                   }`}
                 >
-                  <Filter className="inline w-4 h-4 mr-1" />
+                  <Filter className="inline w-4 h-4 mr-2" />
                   {option.label}
                 </button>
               ))}
@@ -215,141 +215,168 @@ const GameSearchApp = () => {
         )}
 
         {/* Results */}
-        <div className="max-w-7xl mx-auto">
-          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {results.map((game) => {
-              const posterSrc = extractGamePoster(game);
-              const isImagePoster = posterSrc.startsWith('http');
-              
-              return (
-                <div key={game.id} className="group">
-                  {/* Game Card Container */}
-                  <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10">
-                    
-                    {/* Poster Section */}
-                    <div className="relative h-64 overflow-hidden">
-                      {isImagePoster ? (
-                        <img 
-                          src={posterSrc} 
-                          alt={game.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          onError={(e) => {
-                            // Fallback to gradient if image fails
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      
-                      {/* Gradient Fallback */}
-                      <div 
-                        className={`${!isImagePoster ? 'flex' : 'hidden'} w-full h-full bg-gradient-to-br ${posterSrc} items-center justify-center`}
-                        style={{display: !isImagePoster ? 'flex' : 'none'}}
-                      >
-                        <div className="text-6xl opacity-30">🎮</div>
-                      </div>
-                      
-                      {/* Overlay Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
-                      
-                      {/* Source Badge */}
-                      <div className="absolute top-4 right-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
-                          game.source === 'SkidrowReloaded' 
-                            ? 'bg-red-500/80 text-white border border-red-400/50' 
-                            : 'bg-green-500/80 text-white border border-green-400/50'
+        {results.length > 0 && (
+          <div className="max-w-7xl mx-auto">
+            {/* Results Container Header */}
+            <div className="mb-8">
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl border border-blue-500/30 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Search Results</h2>
+                    <p className="text-blue-200">Found {results.length} games across {Object.keys(stats).length} sources</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex flex-wrap gap-3 justify-end">
+                      {Object.entries(stats).map(([site, count]) => (
+                        <span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          site === 'SkidrowReloaded' 
+                            ? 'bg-red-500/20 text-red-300 border border-red-400/50' 
+                            : 'bg-green-500/20 text-green-300 border border-green-400/50'
                         }`}>
-                          {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
+                          {site === 'SkidrowReloaded' ? 'Skidrow' : 'GOG'}: {count}
                         </span>
-                      </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Game Cards Grid */}
+            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+              {results.map((game) => {
+                const posterSrc = extractGamePoster(game);
+                const isImagePoster = posterSrc.startsWith('http');
+                
+                return (
+                  <div key={game.id} className="group">
+                    {/* Game Card Container */}
+                    <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
                       
-                      {/* Download Count Badge */}
-                      {game.downloadLinks && game.downloadLinks.length > 0 && (
-                        <div className="absolute top-4 left-4">
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/80 text-white backdrop-blur-md border border-blue-400/50">
-                            {game.downloadLinks.length} Links
+                      {/* Poster Section */}
+                      <div className="relative h-64 overflow-hidden">
+                        {isImagePoster ? (
+                          <img 
+                            src={posterSrc} 
+                            alt={game.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            onError={(e) => {
+                              // Fallback to gradient if image fails
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        
+                        {/* Gradient Fallback */}
+                        <div 
+                          className={`${!isImagePoster ? 'flex' : 'hidden'} w-full h-full bg-gradient-to-br ${posterSrc} items-center justify-center`}
+                          style={{display: !isImagePoster ? 'flex' : 'none'}}
+                        >
+                          <div className="text-6xl opacity-40">🎮</div>
+                        </div>
+                        
+                        {/* Overlay Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
+                        
+                        {/* Source Badge */}
+                        <div className="absolute top-4 right-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
+                            game.source === 'SkidrowReloaded' 
+                              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30' 
+                              : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
+                          }`}>
+                            {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
                           </span>
+                        </div>
+                        
+                        {/* Download Count Badge */}
+                        {game.downloadLinks && game.downloadLinks.length > 0 && (
+                          <div className="absolute top-4 left-4">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white backdrop-blur-md shadow-lg shadow-blue-500/30">
+                              {game.downloadLinks.length} Links
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="p-6 space-y-4">
+                        {/* Title */}
+                        <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
+                          {game.title}
+                        </h3>
+                        
+                        {/* Description */}
+                        <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
+                          {game.description}
+                        </p>
+                        
+                        {/* Meta Info */}
+                        <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
+                          <span className="flex items-center gap-1">
+                            📅 {formatDate(game.date)}
+                          </span>
+                          <a 
+                            href={game.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-cyan-400 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Source
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Download Links Section */}
+                      {game.downloadLinks && game.downloadLinks.length > 0 && (
+                        <div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                          <div className="p-6 space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                              <Download className="w-4 h-4 text-cyan-400" />
+                              Download Options
+                            </h4>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                              {game.downloadLinks.slice(0, 10).map((link, index) => (
+                                <a
+                                  key={index}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-3 p-3 bg-gray-700/40 hover:bg-gradient-to-r hover:from-cyan-600/20 hover:to-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-cyan-400/50"
+                                >
+                                  <span className="text-lg flex-shrink-0">{getServiceIcon(link.service)}</span>
+                                  <span className="truncate flex-1 font-medium">{link.text || link.service}</span>
+                                  <ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
+                                </a>
+                              ))}
+                              
+                              {game.downloadLinks.length > 10 && (
+                                <div className="col-span-full text-xs text-gray-400 text-center py-2 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                                  +{game.downloadLinks.length - 10} more download options
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Content Section */}
-                    <div className="p-6 space-y-4">
-                      {/* Title */}
-                      <h3 className="font-bold text-xl text-white leading-tight group-hover:text-blue-400 transition-colors">
-                        {game.title}
-                      </h3>
-                      
-                      {/* Description */}
-                      <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-                        {game.description}
-                      </p>
-                      
-                      {/* Meta Info */}
-                      <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
-                        <span className="flex items-center gap-1">
-                          📅 {formatDate(game.date)}
-                        </span>
-                        <a 
-                          href={game.link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 hover:text-blue-400 transition-colors"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Source
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Download Links Section */}
-                    {game.downloadLinks && game.downloadLinks.length > 0 && (
-                      <div className="border-t border-gray-700/50 bg-gray-800/30">
-                        <div className="p-6 space-y-3">
-                          <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                            <Download className="w-4 h-4 text-blue-400" />
-                            Download Options
-                          </h4>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                            {game.downloadLinks.slice(0, 10).map((link, index) => (
-                              <a
-                                key={index}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-3 bg-gray-700/30 hover:bg-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-blue-500/50"
-                              >
-                                <span className="text-lg flex-shrink-0">{getServiceIcon(link.service)}</span>
-                                <span className="truncate flex-1 font-medium">{link.text || link.service}</span>
-                                <ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-blue-400" />
-                              </a>
-                            ))}
-                            
-                            {game.downloadLinks.length > 10 && (
-                              <div className="col-span-full text-xs text-gray-400 text-center py-2 bg-gray-700/20 rounded-lg">
-                                +{game.downloadLinks.length - 10} more download options
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {results.length === 0 && !loading && !error && (
-            <div className="text-center text-gray-400 py-12">
-              <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Search for games to see results</p>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Footer */}
+        {/* Empty State */}
+        {results.length === 0 && !loading && !error && (
+          <div className="text-center text-gray-400 py-12">
+            <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Search for games to see results</p>
+          </div>
+        )}
         <div className="text-center mt-12 text-gray-400 text-sm">
           <p>Powered by Cloudflare Workers • Search across multiple game sources</p>
         </div>
