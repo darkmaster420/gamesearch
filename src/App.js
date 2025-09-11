@@ -524,7 +524,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
               </p>
-            </div>
+            </a>
           </div>
         </div>
 
