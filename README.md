@@ -20,6 +20,9 @@ More sources coming soon 🚀.
 ## 📸 Preview
 
 
+https://github.com/user-attachments/assets/18805259-08cf-43bf-921d-61cb301f679a
+
+
 
 ---
 
@@ -40,8 +43,8 @@ More sources coming soon 🚀.
 
 ```bash
 # Clone repo
-git clone https://github.com/YOUR_USERNAME/game-search-frontend.git
-cd game-search-frontend
+git clone https://github.com/darkmaster420/gamesearch.git
+cd gamesearch
 
 # Install dependencies
 npm install
