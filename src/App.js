@@ -10,12 +10,19 @@ const GameSearchApp = () => {
   const [loading, setLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [error, setError] = useState('');
-  const [siteFilter, setSiteFilter] = useState('all'); // Changed from 'both' to 'all' for better clarity with multiple sources
+  const [siteFilter, setSiteFilter] = useState('both');
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [failedImages, setFailedImages] = useState(new Set());
   const [loadingImages, setLoadingImages] = useState(new Set());
+  
+  // Pagination state - separate for search and recent uploads
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [recentPage, setRecentPage] = useState(1);
+  const [recentHasMore, setRecentHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   
   const searchInputRef = useRef(null);
 
@@ -103,42 +110,23 @@ const GameSearchApp = () => {
     fetchRecentUploads();
     searchInputRef.current?.focus();
   };
-
-  const renderDownloadLinks = (links) => {
-    if (!links || links.length === 0) {
-      return <p className="text-gray-400">No download links available.</p>;
-    }
-    return (
-      <div className="space-y-2 mt-4">
-        {links.map((link, index) => (
-          <a
-            key={index}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition text-sm text-cyan-400"
-          >
-            <Download size={16} />
-            <span className="truncate">{link.text || 'Download'}</span>
-          </a>
-        ))}
-      </div>
-    );
-  };
   
   const handleImageError = (id) => {
     setFailedImages(prev => new Set(prev).add(id));
   };
-
+  
   const renderResult = (post) => {
     const isImageFailed = failedImages.has(post.id);
     const isLoadingImage = loadingImages.has(post.id);
 
     return (
-      <div key={post.id} className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 flex flex-col sm:flex-row gap-6 hover:border-cyan-400 transition-colors duration-200 ease-in-out">
-        {/* Conditional image rendering */}
+      <div key={post.id} className="p-4 border border-gray-700 rounded-lg shadow-md hover:border-cyan-400 transition-colors duration-200">
+        <h3 className="text-lg font-bold text-cyan-400">{post.title}</h3>
+        <p className="text-sm text-gray-400 mt-1">Source: {post.source}</p>
+        <p className="text-xs text-gray-500">{new Date(post.date).toLocaleDateString()}</p>
+        
         {post.image && (
-          <div className="relative w-full sm:w-48 h-48 flex-shrink-0 rounded-lg overflow-hidden border border-white/20 bg-gray-900 flex items-center justify-center">
+          <div className="relative w-full h-48 my-4 rounded-md overflow-hidden bg-gray-800 flex items-center justify-center">
             {isLoadingImage && (
               <Loader size={24} className="animate-spin text-gray-500 absolute" />
             )}
@@ -146,64 +134,58 @@ const GameSearchApp = () => {
               <span className="text-gray-500 text-center text-xs p-2">Image unavailable</span>
             ) : (
               <img
-                src={
-                  post.siteType === 'gog-games'
-                    ? post.image
-                    : `${WORKER_URL}/proxy-image?url=${encodeURIComponent(post.image)}`
-                }
+                src={post.siteType === 'gog-games' ? post.image : `${WORKER_URL}/proxy-image?url=${encodeURIComponent(post.image)}`}
                 alt={post.title}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${isLoadingImage ? 'opacity-0' : 'opacity-100'}`}
+                className="w-full h-full object-cover"
                 onLoad={() => setLoadingImages(prev => {
                   const newSet = new Set(prev);
                   newSet.delete(post.id);
                   return newSet;
                 })}
                 onError={() => handleImageError(post.id)}
-                style={{ objectFit: 'cover' }}
               />
             )}
           </div>
         )}
+        
+        {post.excerpt && post.siteType !== 'gog-games' && (
+          <p className="text-sm text-gray-300 mt-2 line-clamp-3">{post.excerpt}</p>
+        )}
+        
+        {post.siteType === 'gog-games' && (
+          <div className="text-sm text-gray-300 mt-2">
+            <p>Developer: {post.excerpt.split(',')[0].replace('Developer:', '').trim()}</p>
+            <p>Publisher: {post.excerpt.split(',')[1].replace('Publisher:', '').trim()}</p>
+          </div>
+        )}
 
-        <div className="flex-grow flex flex-col">
-          <div className="flex-grow">
-            <h3 className="text-xl font-bold text-cyan-400 leading-tight">
-              {post.title}
-            </h3>
-            <p className="text-sm text-gray-400 mt-1">{post.source}</p>
-            <p className="text-xs text-gray-500">{new Date(post.date).toLocaleDateString()}</p>
-            {post.excerpt && (
-              <p className="text-sm text-gray-300 mt-3 line-clamp-3">
-                {post.excerpt}
-              </p>
-            )}
-            {post.description && post.siteType === 'skidrow' && (
-              <div className="mt-3">
-                <h4 className="font-semibold text-gray-300">Description:</h4>
-                <p className="text-sm text-gray-400 whitespace-pre-wrap mt-1 max-h-48 overflow-y-auto custom-scrollbar">
-                  {post.description}
-                </p>
-              </div>
-            )}
-            {post.siteType === 'gog-games' && (
-              <div className="mt-3 text-sm text-gray-300">
-                <p>Developer: <span className="text-gray-400">{post.excerpt.split(',')[0].replace('Developer:', '').trim()}</span></p>
-                <p>Publisher: <span className="text-gray-400">{post.excerpt.split(',')[1].replace('Publisher:', '').trim()}</span></p>
-              </div>
-            )}
-          </div>
-          <div className="mt-4 flex flex-col gap-4">
-            <a
-              href={post.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition text-sm text-cyan-400"
-            >
-              <ExternalLink size={16} />
-              View Full Post
-            </a>
-            {post.siteType !== 'gog-games' && renderDownloadLinks(post.downloadLinks)}
-          </div>
+        <div className="mt-4 flex flex-col space-y-2">
+          <a
+            href={post.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition text-sm text-cyan-400"
+          >
+            <ExternalLink size={16} />
+            View Full Post
+          </a>
+          
+          {post.downloadLinks && post.downloadLinks.length > 0 && post.siteType !== 'gog-games' && (
+            <div className="flex flex-wrap gap-2">
+              {post.downloadLinks.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition text-sm text-cyan-400"
+                >
+                  <Download size={16} />
+                  <span className="truncate">{link.text || 'Download'}</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -212,15 +194,13 @@ const GameSearchApp = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-8 font-sans">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-cyan-400 mb-2">Game Search</h1>
           <p className="text-gray-400">Search across SkidrowReloaded, FreeGOGPCGames, and GOG-Games.to</p>
         </div>
 
-        {/* Search Bar and Filter */}
         <form onSubmit={handleSearch} className="mb-8 relative">
-          <div className="relative flex items-center bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-2 shadow-lg">
+          <div className="relative flex items-center bg-gray-800 rounded-lg p-2 shadow-lg">
             <input
               ref={searchInputRef}
               type="text"
@@ -242,7 +222,7 @@ const GameSearchApp = () => {
             )}
             <button
               type="submit"
-              className="bg-cyan-600 text-white p-3 rounded-xl hover:bg-cyan-500 transition-colors duration-200 flex items-center justify-center"
+              className="bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-500 transition-colors duration-200 flex items-center justify-center"
               disabled={loading}
             >
               {loading ? (
@@ -255,7 +235,7 @@ const GameSearchApp = () => {
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-300">
             <Filter size={16} className="text-gray-500" />
             <span className="font-semibold">Filter by source:</span>
-            {['all', 'skidrow', 'freegog', 'gog-games'].map(site => (
+            {['both', 'skidrow', 'freegog', 'gog-games'].map(site => (
               <label key={site} className="flex items-center gap-1 cursor-pointer">
                 <input
                   type="radio"
@@ -285,7 +265,7 @@ const GameSearchApp = () => {
                     setQuery(historyQuery);
                     handleSearch({ preventDefault: () => {} });
                   }}
-                  className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition text-sm text-gray-300"
+                  className="px-3 py-1 bg-gray-700 rounded-full hover:bg-gray-600 transition text-sm text-gray-300"
                 >
                   {historyQuery}
                 </button>
@@ -331,7 +311,7 @@ const GameSearchApp = () => {
               </h2>
               <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-400">
                 {Object.entries(stats).map(([source, count]) => (
-                  <span key={source} className="bg-white/5 backdrop-blur-sm rounded-full px-3 py-1 text-xs">
+                  <span key={source} className="bg-gray-700 rounded-full px-3 py-1 text-xs">
                     {source}: {count} results
                   </span>
                 ))}
