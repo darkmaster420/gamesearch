@@ -108,7 +108,12 @@ const GameSearchApp = () => {
   };
 
   const extractGamePoster = (game) => {
-    // Try to extract poster from description or use a placeholder
+    // Use the image field from backend first (extracted from WordPress content)
+    if (game.image) {
+      return game.image;
+    }
+    
+    // Fallback: Try to extract poster from description
     const posterMatch = game.description?.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)/i);
     if (posterMatch) return posterMatch[0];
     
