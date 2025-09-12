@@ -296,7 +296,7 @@ const GameSearchApp = () => {
 
         {/* Search Form */}
         <div className="max-w-4xl mx-auto mb-8">
-          <div onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
               <input
@@ -310,6 +310,7 @@ const GameSearchApp = () => {
               />
               {hasSearched && (
                 <button
+                  type="button"
                   onClick={clearSearch}
                   className="absolute right-4 top-4 h-5 w-5 text-gray-400 hover:text-white transition-colors"
                 >
@@ -343,7 +344,7 @@ const GameSearchApp = () => {
 
             <div className="text-center">
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={loading || !query.trim()}
                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl font-semibold transition-colors inline-flex items-center gap-2"
               >
@@ -351,7 +352,7 @@ const GameSearchApp = () => {
                 {loading ? 'Searching...' : 'Search Games'}
               </button>
             </div>
-          </div>
+          </form>
 
           {/* Search History */}
           {searchHistory.length > 0 && (
@@ -532,7 +533,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Remove Pixeldrain download limits with a Cloudflare Worker proxy.
               </p>
-            </div>
+            </a>
 
             <a
               href="https://cfrss.a7a8524.workers.dev/"
@@ -546,7 +547,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
               </p>
-            </div>
+            </a>
           </div>
         </div>
 
