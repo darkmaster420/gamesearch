@@ -62,10 +62,13 @@ This app relies on a companion API built with Cloudflare Workers.
 
 Example request:
 
-GET https://gameapi.a7a8524.workers.dev/?search=cyberpunk+2077&site=skidrow
+```bash
+curl -x GET https://gameapi.a7a8524.workers.dev/?search=cyberpunk+2077&site=skidrow
+```
 
 Example response:
 
+```
 {
       "id": "skidrow_500974",
       "originalId": 500974,
@@ -78,6 +81,7 @@ Example response:
       "categories": [1, 1915],
       "tags": [320586],
       "downloadLinks": [
+```
 
 
 ---
