@@ -107,15 +107,39 @@ const GameSearchApp = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // CORS-safe image proxy function
+  const getProxiedImageUrl = (originalUrl) => {
+    if (!originalUrl || !originalUrl.startsWith('http')) {
+      return null;
+    }
+    
+    // Option 1: Use a CORS proxy service
+    // return `https://cors-anywhere.herokuapp.com/${originalUrl}`;
+    
+    // Option 2: Use your Cloudflare Worker as a proxy
+    return `${WORKER_URL}/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+    
+    // Option 3: Use a public CORS proxy (less reliable)
+    // return `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`;
+  };
+
   const extractGamePoster = (game) => {
     // Use the image field from backend first (extracted from WordPress content)
     if (game.image) {
-      return game.image;
+      const proxiedUrl = getProxiedImageUrl(game.image);
+      if (proxiedUrl) {
+        return { url: proxiedUrl, isProxied: true };
+      }
     }
     
     // Fallback: Try to extract poster from description
     const posterMatch = game.description?.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)/i);
-    if (posterMatch) return posterMatch[0];
+    if (posterMatch) {
+      const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
+      if (proxiedUrl) {
+        return { url: proxiedUrl, isProxied: true };
+      }
+    }
     
     // Generate a gradient based on game title for consistent colors
     const colors = [
@@ -130,7 +154,7 @@ const GameSearchApp = () => {
       'from-pink-600 to-purple-600'
     ];
     const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
-    return colors[colorIndex];
+    return { url: colors[colorIndex], isProxied: false };
   };
 
   const getServiceIcon = (service) => {
@@ -151,7 +175,8 @@ const GameSearchApp = () => {
   };
 
   const GameCard = ({ game }) => {
-    const posterSrc = extractGamePoster(game);
+    const posterData = extractGamePoster(game);
+    const { url: posterSrc, isProxied } = posterData;
     const isImagePoster = posterSrc.startsWith('http');
     const imageHasFailed = failedImages.has(game.id);
     const shouldShowImage = isImagePoster && !imageHasFailed;
@@ -170,11 +195,11 @@ const GameSearchApp = () => {
                   alt={game.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   onError={() => handleImageError(game.id, posterSrc)}
-                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
                   loading="lazy"
                 />
                 {/* Loading placeholder while image loads */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
                   <div className="text-4xl opacity-40">🎮</div>
                 </div>
               </>
@@ -208,7 +233,16 @@ const GameSearchApp = () => {
               </div>
             )}
 
-            {/* Debug Badge - Show if image failed (remove in production) */}
+            {/* Proxied Image Badge (for debugging) */}
+            {isProxied && shouldShowImage && (
+              <div className="absolute bottom-4 right-4">
+                <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">
+                  PROXIED
+                </span>
+              </div>
+            )}
+
+            {/* Image Failed Badge (for debugging) */}
             {imageHasFailed && isImagePoster && (
               <div className="absolute bottom-4 left-4">
                 <span className="px-2 py-1 rounded text-xs bg-yellow-500/80 text-black">
@@ -533,7 +567,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Remove Pixeldrain download limits with a Cloudflare Worker proxy.
               </p>
-            </a>
+            </div>
 
             <a
               href="https://cfrss.a7a8524.workers.dev/"
@@ -547,7 +581,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
               </p>
-            </a>
+            </div>
           </div>
         </div>
 
