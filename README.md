@@ -51,3 +51,61 @@ npm install
 
 # Start development server
 npm run dev
+```
+
+🌐 API Backend
+
+This app relies on a companion API built with Cloudflare Workers.
+👉 Check out the backend repo here: Game Search API
+
+Example request:
+
+GET https://gameapi.a7a8524.workers.dev/?search=cyberpunk+2077&site=skidrow
+
+Example response:
+
+{
+      "id": "skidrow_500974",
+      "originalId": 500974,
+      "title": "Cyberpunk 2077 v2.31-GOG",
+      "excerpt": "GOG ONE FTP LINK TORRENT Cyberpunk 2077 is an open-world, action-adventure story set in Night City .",
+      "link": "https://www.skidrowreloaded.com/cyberpunk-2077-v2-31-gog/",
+      "date": "2025-09-11T21:55:27",
+      "slug": "cyberpunk-2077-v2-31-gog",
+      "description": "GOG ONE FTP LINK TORRENT Cyberpunk 2077 is an open-world, action-adventure story set in Night City .",
+      "categories": [1, 1915],
+      "tags": [320586],
+      "downloadLinks": [
+
+
+---
+
+🛣️ Roadmap
+
+[ ] Add more sources (e.g. GOGGames, DodiRepacks)
+
+[ ] Smarter link prioritization (torrents first)
+
+[✓ ] Deploy live demo
+
+[ ] Dark mode toggle (for fun 😏)
+
+
+
+---
+
+📜 License
+
+MIT License. Do whatever you want, just don’t sue me.
+
+
+---
+
+❤️ Acknowledgements
+
+SkidrowReloaded
+
+FreeGOG
+
+Cloudflare Workers for making the API possible
+
