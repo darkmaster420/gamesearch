@@ -18,7 +18,6 @@ const GameSearchApp = () => {
 
   const searchInputRef = useRef(null);
 
-  // Load search history from localStorage on component mount
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem('gameSearchHistory');
@@ -32,12 +31,10 @@ const GameSearchApp = () => {
     }
   }, []);
 
-  // Load recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
   
-  // Dynamic Page Title and Favicon
   useEffect(() => {
     let newTitle = 'GameSearch';
     if (hasSearched && query) {
@@ -49,26 +46,22 @@ const GameSearchApp = () => {
     }
     document.title = newTitle;
     
-    // Favicon logic
     const link = document.createElement('link');
     link.rel = 'icon';
     link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>';
     
-    // Clear any existing favicons to prevent duplicates
     const existingLink = document.querySelector("link[rel~='icon']");
     if (existingLink) {
       existingLink.remove();
     }
     document.head.appendChild(link);
     
-    // Cleanup on unmount
     return () => {
       document.title = 'GameSearch';
       link.remove();
     };
   }, [query, hasSearched, results.length, recentUploads.length]);
 
-  // Save search to history
   const saveToHistory = (searchTerm) => {
     const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
@@ -79,12 +72,13 @@ const GameSearchApp = () => {
     }
   };
 
-  // Updated fetchRecentUploads - simplified
   const fetchRecentUploads = async () => {
     setLoadingRecent(true);
     setHasSearched(false);
-    setResults([]); // Clear search results when fetching recent
+    setResults([]);
     setError('');
+    setQuery('');
+    setStats({});
     try {
       const response = await fetch(`${WORKER_URL}/recent`);
       const data = await response.json();
@@ -102,14 +96,13 @@ const GameSearchApp = () => {
     }
   };
 
-  // Updated searchGames - simplified
   const searchGames = async (searchQuery = query) => {
     if (!searchQuery.trim()) return;
 
     setLoading(true);
     setHasSearched(true);
     setError('');
-    setRecentUploads([]); // Clear recent uploads when searching
+    setRecentUploads([]);
 
     try {
       const params = new URLSearchParams({
@@ -145,7 +138,6 @@ const GameSearchApp = () => {
     searchGames(historyItem);
   };
 
-  // Updated clearSearch to remove all pagination states
   const clearSearch = () => {
     setQuery('');
     setResults([]);
@@ -164,7 +156,6 @@ const GameSearchApp = () => {
     }
   };
 
-  // Improved CORS-safe image proxy function
   const getProxiedImageUrl = (originalUrl) => {
     if (!originalUrl || !originalUrl.startsWith('http')) {
       return null;
@@ -326,6 +317,18 @@ const GameSearchApp = () => {
       </div>
     );
   };
+
+  // Logic to filter results based on siteFilter
+  const filteredResults = React.useMemo(() => {
+    if (siteFilter === 'both') {
+      return results;
+    }
+    const sourceMap = {
+      skidrow: 'SkidrowReloaded',
+      freegog: 'FreeGOGPCGames',
+    };
+    return results.filter(game => game.source === sourceMap[siteFilter]);
+  }, [results, siteFilter]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
@@ -502,14 +505,14 @@ const GameSearchApp = () => {
         )}
 
         {/* Search Results - Show when search has been made */}
-        {hasSearched && results.length > 0 && (
+        {hasSearched && filteredResults.length > 0 && (
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl border border-blue-500/30 p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-2">Search Results</h2>
-                    <p className="text-blue-200">Found {results.length} games across {Object.keys(stats).length} sources</p>
+                    <p className="text-blue-200">Found {filteredResults.length} games</p>
                   </div>
                   <div className="text-right">
                     <div className="flex flex-wrap gap-3 justify-end">
@@ -529,18 +532,18 @@ const GameSearchApp = () => {
             </div>
 
             <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {results.map((game) => (
+              {filteredResults.map((game) => (
                 <GameCard key={game.id} game={game} />
               ))}
             </div>
             <div className="text-center text-gray-400 text-sm mt-4">
-              Showing {results.length} search results
+              Showing {filteredResults.length} search results
             </div>
           </div>
         )}
 
         {/* Empty State for Search Results */}
-        {hasSearched && results.length === 0 && !loading && !error && (
+        {hasSearched && filteredResults.length === 0 && !loading && !error && (
           <div className="text-center text-gray-400 py-12">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No games found for your search</p>
