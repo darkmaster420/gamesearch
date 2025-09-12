@@ -162,14 +162,8 @@ const GameSearchApp = () => {
     }
     return `${WORKER_URL}/proxy-image?url=${encodeURIComponent(originalUrl)}`;
   };
-  
-  // --- Start of GOG-Games specific logic ---
-  const extractGamePoster = (game) => {
-    // New check for GOG-Games source
-    if (game.siteType === 'gog-games' && game.image) {
-      return { url: game.image, isProxied: false, originalUrl: game.image };
-    }
 
+  const extractGamePoster = (game) => {
     if (game.image && game.image.startsWith('http')) {
       const proxiedUrl = getProxiedImageUrl(game.image);
       if (proxiedUrl) {
@@ -193,7 +187,6 @@ const GameSearchApp = () => {
     const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
     return { url: colors[colorIndex], isProxied: false, originalUrl: null };
   };
-  // --- End of GOG-Games specific logic ---
 
   const getServiceIcon = (service) => {
     if (!service) return '💾';
@@ -216,18 +209,6 @@ const GameSearchApp = () => {
     const isImagePoster = posterSrc && posterSrc.startsWith('http');
     const imageHasFailed = failedImages.has(game.id);
     const shouldShowImage = isImagePoster && !imageHasFailed;
-
-    const sourceLabel = game.source === 'SkidrowReloaded'
-      ? 'SKIDROW'
-      : game.source === 'FreeGOGPCGames'
-      ? 'GOG' // This is the old label, will be updated below
-      : 'GOG-Games'; // New label for gog-games.to
-
-    const sourceColors = game.source === 'SkidrowReloaded'
-      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
-      : game.source === 'FreeGOGPCGames'
-      ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
-      : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/30'; // New colors for gog-games.to
 
     return (
       <div className="group">
@@ -254,8 +235,12 @@ const GameSearchApp = () => {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
             <div className="absolute top-4 right-4">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${sourceColors}`}>
-                {sourceLabel}
+              <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
+                game.source === 'SkidrowReloaded'
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
+                  : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
+              }`}>
+                {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
               </span>
             </div>
             {game.downloadLinks && game.downloadLinks.length > 0 && (
@@ -284,19 +269,9 @@ const GameSearchApp = () => {
             <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
               {game.title}
             </h3>
-            {game.description && (
-              <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-                {game.description}
-              </p>
-            )}
-            {/* New section for GOG-Games specific info */}
-            {game.siteType === 'gog-games' && game.excerpt && (
-              <p className="text-gray-300 text-sm leading-relaxed">
-                <span className="font-semibold text-white">Developer:</span> {game.excerpt.split(',')[0].replace('Developer:', '').trim()}
-                <br />
-                <span className="font-semibold text-white">Publisher:</span> {game.excerpt.split(',')[1].replace('Publisher:', '').trim()}
-              </p>
-            )}
+            <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
+              {game.description}
+            </p>
             <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
               <span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
               <a
@@ -309,8 +284,7 @@ const GameSearchApp = () => {
               </a>
             </div>
           </div>
-          {/* Don't show download links for GOG-Games source */}
-          {game.downloadLinks && game.downloadLinks.length > 0 && game.siteType !== 'gog-games' && (
+          {game.downloadLinks && game.downloadLinks.length > 0 && (
             <div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
               <div className="p-6 space-y-3">
                 <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
@@ -352,7 +326,6 @@ const GameSearchApp = () => {
     const sourceMap = {
       skidrow: 'SkidrowReloaded',
       freegog: 'FreeGOGPCGames',
-      'gog-games': 'GOG-Games',
     };
     return results.filter(game => game.source === sourceMap[siteFilter]);
   }, [results, siteFilter]);
@@ -394,10 +367,9 @@ const GameSearchApp = () => {
             {/* Site Filter */}
             <div className="flex flex-wrap gap-3 justify-center">
               {[
-                { value: 'both', label: 'All Sites', color: 'from-purple-500 to-pink-500' },
+                { value: 'both', label: 'Both Sites', color: 'from-purple-500 to-pink-500' },
                 { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
-                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' },
-                { value: 'gog-games', label: 'GOG-Games', color: 'from-blue-500 to-indigo-500' },
+                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' }
               ].map(option => (
                 <button
                   key={option.value}
@@ -438,7 +410,7 @@ const GameSearchApp = () => {
                     onClick={() => handleHistoryClick(item)}
                     className="px-3 py-1 bg-white/10 hover:bg-white/20 text-gray-300 rounded-full text-sm transition-colors"
                   >
-                  {item}
+                    {item}
                   </button>
                 ))}
               </div>
@@ -548,11 +520,9 @@ const GameSearchApp = () => {
                         <span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
                           site === 'SkidrowReloaded'
                             ? 'bg-red-500/20 text-red-300 border border-red-400/50'
-                            : site === 'FreeGOGPCGames'
-                            ? 'bg-green-500/20 text-green-300 border border-green-400/50'
-                            : 'bg-blue-500/20 text-blue-300 border border-blue-400/50' // New style for GOG-Games
+                            : 'bg-green-500/20 text-green-300 border border-green-400/50'
                         }`}>
-                          {site === 'SkidrowReloaded' ? 'Skidrow' : site === 'FreeGOGPCGames' ? 'GOG' : 'GOG-Games'}: {count}
+                          {site === 'SkidrowReloaded' ? 'Skidrow' : 'GOG'}: {count}
                         </span>
                       ))}
                     </div>
