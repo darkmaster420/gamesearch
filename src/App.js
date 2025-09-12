@@ -10,600 +10,343 @@ const GameSearchApp = () => {
   const [loading, setLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [error, setError] = useState('');
-  const [siteFilter, setSiteFilter] = useState('both');
+  const [siteFilter, setSiteFilter] = useState('all'); // Changed from 'both' to 'all' for better clarity with multiple sources
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [failedImages, setFailedImages] = useState(new Set());
-
+  const [loadingImages, setLoadingImages] = useState(new Set());
+  
   const searchInputRef = useRef(null);
 
+  // Load search history from localStorage on component mount
   useEffect(() => {
     try {
-      const savedHistory = localStorage.getItem('gameSearchHistory');
-      if (savedHistory) {
-        const parsedHistory = JSON.parse(savedHistory);
-        setSearchHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
+      const storedHistory = localStorage.getItem('searchHistory');
+      if (storedHistory) {
+        setSearchHistory(JSON.parse(storedHistory));
       }
-    } catch (error) {
-      console.error('Error loading search history:', error);
-      setSearchHistory([]);
+    } catch (e) {
+      console.error('Failed to load search history from localStorage:', e);
     }
   }, []);
 
+  // Fetch recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
-  
-  useEffect(() => {
-    let newTitle = 'GameSearch';
-    if (hasSearched && query) {
-      newTitle = `GameSearch: ${query} results`;
-    } else if (hasSearched && results.length > 0) {
-      newTitle = `GameSearch: Search Results`;
-    } else if (!hasSearched && recentUploads.length > 0) {
-      newTitle = `GameSearch: Recent Uploads`;
-    }
-    document.title = newTitle;
-    
-    const link = document.createElement('link');
-    link.rel = 'icon';
-    link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>';
-    
-    const existingLink = document.querySelector("link[rel~='icon']");
-    if (existingLink) {
-      existingLink.remove();
-    }
-    document.head.appendChild(link);
-    
-    return () => {
-      document.title = 'GameSearch';
-      link.remove();
-    };
-  }, [query, hasSearched, results.length, recentUploads.length]);
-
-  const saveToHistory = (searchTerm) => {
-    const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
-    setSearchHistory(newHistory);
-    try {
-      localStorage.setItem('gameSearchHistory', JSON.stringify(newHistory));
-    } catch (error) {
-      console.error('Error saving search history:', error);
-    }
-  };
 
   const fetchRecentUploads = async () => {
     setLoadingRecent(true);
-    setHasSearched(false);
-    setResults([]);
     setError('');
-    setQuery('');
-    setStats({});
     try {
       const response = await fetch(`${WORKER_URL}/recent`);
       const data = await response.json();
       if (data.success) {
-        setRecentUploads(data.results || []);
+        setRecentUploads(data.results);
       } else {
-        console.error('Failed to fetch recent uploads:', data.error);
-        setError(data.error || 'Failed to fetch recent uploads');
+        setError(data.error || 'Failed to fetch recent uploads.');
       }
     } catch (err) {
-      console.error('Recent uploads error:', err);
-      setError('Failed to connect to API');
+      setError('An error occurred while fetching recent uploads.');
+      console.error(err);
     } finally {
       setLoadingRecent(false);
     }
   };
 
-  const searchGames = async (searchQuery = query) => {
-    if (!searchQuery.trim()) return;
-
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) {
+      setError('Please enter a search query.');
+      return;
+    }
+    
     setLoading(true);
-    setHasSearched(true);
+    setResults([]);
     setError('');
-    setRecentUploads([]);
+    setHasSearched(true);
+    setStats({});
+    
+    // Add query to search history
+    const newHistory = [query, ...searchHistory.filter(q => q !== query)].slice(0, 5);
+    setSearchHistory(newHistory);
+    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
 
     try {
-      const params = new URLSearchParams({
-        search: searchQuery.trim(),
-        site: siteFilter,
-      });
-
-      const response = await fetch(`${WORKER_URL}?${params}`);
+      const response = await fetch(`${WORKER_URL}/search?search=${encodeURIComponent(query)}&site=${siteFilter}`);
       const data = await response.json();
-
+      
       if (data.success) {
-        setResults(data.results || []);
-        setStats(data.siteStats || {});
-        saveToHistory(searchQuery.trim());
+        setResults(data.results);
+        setStats(data.siteStats);
+        if (data.results.length === 0) {
+          setError('No results found for your query.');
+        }
       } else {
-        setError(data.error || 'Search failed');
+        setError(data.error || 'Failed to fetch search results.');
       }
     } catch (err) {
-      setError('Failed to connect to search API');
-      console.error('Search error:', err);
+      setError('An error occurred while searching.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
-    searchGames();
-  };
-
-  const handleHistoryClick = (historyItem) => {
-    setQuery(historyItem);
-    searchGames(historyItem);
-  };
-
   const clearSearch = () => {
     setQuery('');
     setResults([]);
-    setStats({});
     setError('');
     setHasSearched(false);
+    setStats({});
     fetchRecentUploads();
+    searchInputRef.current?.focus();
+  };
+
+  const renderDownloadLinks = (links) => {
+    if (!links || links.length === 0) {
+      return <p className="text-gray-400">No download links available.</p>;
+    }
+    return (
+      <div className="space-y-2 mt-4">
+        {links.map((link, index) => (
+          <a
+            key={index}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition text-sm text-cyan-400"
+          >
+            <Download size={16} />
+            <span className="truncate">{link.text || 'Download'}</span>
+          </a>
+        ))}
+      </div>
+    );
   };
   
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return 'Invalid Date';
-    }
+  const handleImageError = (id) => {
+    setFailedImages(prev => new Set(prev).add(id));
   };
 
-  const getProxiedImageUrl = (originalUrl) => {
-    if (!originalUrl || !originalUrl.startsWith('http')) {
-      return null;
-    }
-    return `${WORKER_URL}/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-  };
-
-  const extractGamePoster = (game) => {
-    if (game.image && game.image.startsWith('http')) {
-      const proxiedUrl = getProxiedImageUrl(game.image);
-      if (proxiedUrl) {
-        return { url: proxiedUrl, isProxied: true, originalUrl: game.image };
-      }
-    }
-    if (game.description) {
-      const posterMatch = game.description.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp)/i);
-      if (posterMatch) {
-        const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
-        if (proxiedUrl) {
-          return { url: proxiedUrl, isProxied: true, originalUrl: posterMatch[0] };
-        }
-      }
-    }
-    const colors = [
-      'from-purple-600 to-blue-600', 'from-blue-600 to-cyan-600', 'from-cyan-600 to-teal-600',
-      'from-teal-600 to-green-600', 'from-green-600 to-yellow-600', 'from-yellow-600 to-orange-600',
-      'from-orange-600 to-red-600', 'from-red-600 to-pink-600', 'from-pink-600 to-purple-600'
-    ];
-    const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
-    return { url: colors[colorIndex], isProxied: false, originalUrl: null };
-  };
-
-  const getServiceIcon = (service) => {
-    if (!service) return '💾';
-    const serviceLower = service.toLowerCase();
-    if (serviceLower.includes('magnet') || serviceLower.includes('torrent')) return '🧲';
-    if (serviceLower.includes('mega')) return '🟦';
-    if (serviceLower.includes('mediafire')) return '🔥';
-    if (serviceLower.includes('google')) return '🔗';
-    return '💾';
-  };
-
-  const handleImageError = (gameId, imageUrl, originalUrl) => {
-    console.log(`Image failed to load for ${gameId}: ${imageUrl} (original: ${originalUrl})`);
-    setFailedImages(prev => new Set([...prev, gameId]));
-  };
-
-  const GameCard = ({ game }) => {
-    const posterData = extractGamePoster(game);
-    const { url: posterSrc, isProxied, originalUrl } = posterData;
-    const isImagePoster = posterSrc && posterSrc.startsWith('http');
-    const imageHasFailed = failedImages.has(game.id);
-    const shouldShowImage = isImagePoster && !imageHasFailed;
+  const renderResult = (post) => {
+    const isImageFailed = failedImages.has(post.id);
+    const isLoadingImage = loadingImages.has(post.id);
 
     return (
-      <div className="group">
-        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
-          <div className="relative h-64 overflow-hidden">
-            {shouldShowImage ? (
-              <>
-                <img
-                  src={posterSrc}
-                  alt={game.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
-                  <div className="text-4xl opacity-40">🎮</div>
-                </div>
-              </>
+      <div key={post.id} className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 flex flex-col sm:flex-row gap-6 hover:border-cyan-400 transition-colors duration-200 ease-in-out">
+        {/* Conditional image rendering */}
+        {post.image && (
+          <div className="relative w-full sm:w-48 h-48 flex-shrink-0 rounded-lg overflow-hidden border border-white/20 bg-gray-900 flex items-center justify-center">
+            {isLoadingImage && (
+              <Loader size={24} className="animate-spin text-gray-500 absolute" />
+            )}
+            {isImageFailed ? (
+              <span className="text-gray-500 text-center text-xs p-2">Image unavailable</span>
             ) : (
-              <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
-                <div className="text-6xl opacity-40">🎮</div>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
-            <div className="absolute top-4 right-4">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
-                game.source === 'SkidrowReloaded'
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
-                  : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
-              }`}>
-                {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
-              </span>
-            </div>
-            {game.downloadLinks && game.downloadLinks.length > 0 && (
-              <div className="absolute top-4 left-4">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white backdrop-blur-md shadow-lg shadow-blue-500/30">
-                  {game.downloadLinks.length} Links
-                </span>
-              </div>
-            )}
-            {process.env.NODE_ENV === 'development' && (
-              <>
-                {isProxied && shouldShowImage && !imageHasFailed && (
-                  <div className="absolute bottom-4 right-4">
-                    <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">PROXIED</span>
-                  </div>
-                )}
-                {imageHasFailed && isImagePoster && (
-                  <div className="absolute bottom-4 left-4">
-                    <span className="px-2 py-1 rounded text-xs bg-red-500/80 text-white" title={`Original: ${originalUrl}`}>IMG FAILED</span>
-                  </div>
-                )}
-              </>
+              <img
+                src={
+                  post.siteType === 'gog-games'
+                    ? post.image
+                    : `${WORKER_URL}/proxy-image?url=${encodeURIComponent(post.image)}`
+                }
+                alt={post.title}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${isLoadingImage ? 'opacity-0' : 'opacity-100'}`}
+                onLoad={() => setLoadingImages(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(post.id);
+                  return newSet;
+                })}
+                onError={() => handleImageError(post.id)}
+                style={{ objectFit: 'cover' }}
+              />
             )}
           </div>
-          <div className="p-6 space-y-4">
-            <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
-              {game.title}
+        )}
+
+        <div className="flex-grow flex flex-col">
+          <div className="flex-grow">
+            <h3 className="text-xl font-bold text-cyan-400 leading-tight">
+              {post.title}
             </h3>
-            <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-              {game.description}
-            </p>
-            <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
-              <span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
-              <a
-                href={game.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-cyan-400 transition-colors"
-              >
-                <ExternalLink className="w-3 h-3" /> Source
-              </a>
-            </div>
-          </div>
-          {game.downloadLinks && game.downloadLinks.length > 0 && (
-            <div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
-              <div className="p-6 space-y-3">
-                <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                  <Download className="w-4 h-4 text-cyan-400" /> Download Options
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {game.downloadLinks.slice(0, 10).map((link, index) => (
-                    <a
-                      key={index}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 bg-gray-700/40 hover:bg-gradient-to-r hover:from-cyan-600/20 hover:to-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-cyan-400/50"
-                    >
-                      <span className="text-lg flex-shrink-0">{getServiceIcon(link.service)}</span>
-                      <span className="truncate flex-1 font-medium">{link.text || link.service}</span>
-                      <ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
-                    </a>
-                  ))}
-                  {game.downloadLinks.length > 10 && (
-                    <div className="col-span-full text-xs text-gray-400 text-center py-2 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                      +{game.downloadLinks.length - 10} more download options
-                    </div>
-                  )}
-                </div>
+            <p className="text-sm text-gray-400 mt-1">{post.source}</p>
+            <p className="text-xs text-gray-500">{new Date(post.date).toLocaleDateString()}</p>
+            {post.excerpt && (
+              <p className="text-sm text-gray-300 mt-3 line-clamp-3">
+                {post.excerpt}
+              </p>
+            )}
+            {post.description && post.siteType === 'skidrow' && (
+              <div className="mt-3">
+                <h4 className="font-semibold text-gray-300">Description:</h4>
+                <p className="text-sm text-gray-400 whitespace-pre-wrap mt-1 max-h-48 overflow-y-auto custom-scrollbar">
+                  {post.description}
+                </p>
               </div>
-            </div>
-          )}
+            )}
+            {post.siteType === 'gog-games' && (
+              <div className="mt-3 text-sm text-gray-300">
+                <p>Developer: <span className="text-gray-400">{post.excerpt.split(',')[0].replace('Developer:', '').trim()}</span></p>
+                <p>Publisher: <span className="text-gray-400">{post.excerpt.split(',')[1].replace('Publisher:', '').trim()}</span></p>
+              </div>
+            )}
+          </div>
+          <div className="mt-4 flex flex-col gap-4">
+            <a
+              href={post.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition text-sm text-cyan-400"
+            >
+              <ExternalLink size={16} />
+              View Full Post
+            </a>
+            {post.siteType !== 'gog-games' && renderDownloadLinks(post.downloadLinks)}
+          </div>
         </div>
       </div>
     );
   };
-
-  // Logic to filter results based on siteFilter
-  const filteredResults = React.useMemo(() => {
-    if (siteFilter === 'both') {
-      return results;
-    }
-    const sourceMap = {
-      skidrow: 'SkidrowReloaded',
-      freegog: 'FreeGOGPCGames',
-    };
-    return results.filter(game => game.source === sourceMap[siteFilter]);
-  }, [results, siteFilter]);
-
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Game Search</h1>
-          <p className="text-blue-200">Search across multiple game sources</p>
+          <h1 className="text-4xl font-extrabold text-cyan-400 mb-2">Game Search</h1>
+          <p className="text-gray-400">Search across SkidrowReloaded, FreeGOGPCGames, and GOG-Games.to</p>
         </div>
 
-        {/* Search Form */}
-        <div className="max-w-4xl mx-auto mb-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="Search for games..."
-                className="w-full pl-12 pr-12 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              {hasSearched && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="absolute right-4 top-4 h-5 w-5 text-gray-400 hover:text-white transition-colors"
-                >
-                  <X />
-                </button>
-              )}
-            </div>
-
-            {/* Site Filter */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              {[
-                { value: 'both', label: 'Both Sites', color: 'from-purple-500 to-pink-500' },
-                { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
-                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' }
-              ].map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSiteFilter(option.value)}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                    siteFilter === option.value
-                      ? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
-                  }`}
-                >
-                  <Filter className="inline w-4 h-4 mr-2" />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-center">
+        {/* Search Bar and Filter */}
+        <form onSubmit={handleSearch} className="mb-8 relative">
+          <div className="relative flex items-center bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-2 shadow-lg">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search for a game..."
+              className="w-full bg-transparent text-white placeholder-gray-400 focus:outline-none p-3 pl-4"
+              disabled={loading}
+            />
+            {query && (
               <button
-                type="submit"
-                disabled={loading || !query.trim()}
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl font-semibold transition-colors inline-flex items-center gap-2"
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-20 text-gray-400 hover:text-white transition-colors duration-200 p-2 rounded-full"
+                aria-label="Clear search"
               >
-                {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                {loading ? 'Searching...' : 'Search Games'}
+                <X size={20} />
               </button>
-            </div>
-          </form>
-
-          {/* Search History */}
-          {searchHistory.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-300 mb-2">Recent searches:</p>
-              <div className="flex flex-wrap gap-2">
-                {searchHistory.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleHistoryClick(item)}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 text-gray-300 rounded-full text-sm transition-colors"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats (only show when there are search results) */}
-        {hasSearched && Object.keys(stats).length > 0 && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-              <div className="flex flex-wrap gap-4 justify-center text-sm text-gray-300">
-                {Object.entries(stats).map(([site, count]) => (
-                  <span key={site} className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                    {site}: {count} results
-                  </span>
-                ))}
-                <span className="flex items-center gap-1 font-semibold">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Total: {results.length}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-red-200 text-center">
-              <X className="inline w-5 h-5 mr-2" />
-              {error}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Uploads Section - Show when no search has been made */}
-        {!hasSearched && (
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-purple-600/20 to-orange-600/20 backdrop-blur-md rounded-2xl border border-purple-500/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                      <Clock className="w-7 h-7 text-orange-400" />
-                      Recent Uploads
-                    </h2>
-                    <p className="text-purple-200">Latest games uploaded across all sources</p>
-                  </div>
-                  <div className="text-right">
-                    <button
-                      onClick={fetchRecentUploads}
-                      disabled={loadingRecent}
-                      className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-400/50 rounded-lg text-purple-300 hover:text-white transition-all duration-200 text-sm font-medium flex items-center gap-2"
-                    >
-                      {loadingRecent ? (
-                        <Loader className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Clock className="w-4 h-4" />
-                      )}
-                      {loadingRecent ? 'Loading...' : 'Refresh'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {loadingRecent ? (
-              <div className="text-center py-12">
-                <Loader className="w-12 h-12 mx-auto mb-4 animate-spin text-purple-400" />
-                <p className="text-gray-400">Loading recent uploads...</p>
-              </div>
-            ) : recentUploads.length > 0 ? (
-              <>
-                <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-                  {recentUploads.map((game) => (
-                    <GameCard key={game.id} game={game} />
-                  ))}
-                </div>
-                <div className="text-center text-gray-400 text-sm mt-4">
-                  Showing {recentUploads.length} recent uploads
-                </div>
-              </>
-            ) : (
-              <div className="text-center text-gray-400 py-12">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No recent uploads available</p>
-              </div>
             )}
-          </div>
-        )}
-
-        {/* Search Results - Show when search has been made */}
-        {hasSearched && filteredResults.length > 0 && (
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl border border-blue-500/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Search Results</h2>
-                    <p className="text-blue-200">Found {filteredResults.length} games</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex flex-wrap gap-3 justify-end">
-                      {Object.entries(stats).map(([site, count]) => (
-                        <span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          site === 'SkidrowReloaded'
-                            ? 'bg-red-500/20 text-red-300 border border-red-400/50'
-                            : 'bg-green-500/20 text-green-300 border border-green-400/50'
-                        }`}>
-                          {site === 'SkidrowReloaded' ? 'Skidrow' : 'GOG'}: {count}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {filteredResults.map((game) => (
-                <GameCard key={game.id} game={game} />
-              ))}
-            </div>
-            <div className="text-center text-gray-400 text-sm mt-4">
-              Showing {filteredResults.length} search results
-            </div>
-          </div>
-        )}
-
-        {/* Empty State for Search Results */}
-        {hasSearched && filteredResults.length === 0 && !loading && !error && (
-          <div className="text-center text-gray-400 py-12">
-            <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No games found for your search</p>
             <button
-              onClick={clearSearch}
-              className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
+              type="submit"
+              className="bg-cyan-600 text-white p-3 rounded-xl hover:bg-cyan-500 transition-colors duration-200 flex items-center justify-center"
+              disabled={loading}
             >
-              View Recent Uploads
+              {loading ? (
+                <Loader size={24} className="animate-spin" />
+              ) : (
+                <Search size={24} />
+              )}
             </button>
           </div>
-        )}
-
-        {/* Empty State for Initial Load */}
-        {!hasSearched && recentUploads.length === 0 && !loadingRecent && (
-          <div className="text-center text-gray-400 py-12">
-            <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Search for games or check out recent uploads</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-300">
+            <Filter size={16} className="text-gray-500" />
+            <span className="font-semibold">Filter by source:</span>
+            {['all', 'skidrow', 'freegog', 'gog-games'].map(site => (
+              <label key={site} className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="site-filter"
+                  value={site}
+                  checked={siteFilter === site}
+                  onChange={(e) => setSiteFilter(e.target.value)}
+                  className="form-radio text-cyan-400 bg-gray-700 border-gray-600 focus:ring-cyan-400"
+                />
+                {site.charAt(0).toUpperCase() + site.slice(1)}
+              </label>
+            ))}
+          </div>
+        </form>
+        
+        {/* Search History */}
+        {!hasSearched && searchHistory.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-300 mb-2 flex items-center">
+              <Clock size={18} className="mr-2 text-gray-500" /> Recent Searches
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {searchHistory.map((historyQuery, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setQuery(historyQuery);
+                    handleSearch({ preventDefault: () => {} });
+                  }}
+                  className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition text-sm text-gray-300"
+                >
+                  {historyQuery}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* 🔗 Other Projects Section */}
-        <div className="max-w-4xl mx-auto mt-16">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">
-            Other Projects
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <a
-              href="https://pdbypass.a7a8524.workers.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
-            >
-              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
-                Pixeldrain Bypass
-              </h3>
-              <p className="text-sm text-gray-300">
-                Remove Pixeldrain download limits with a Cloudflare Worker proxy.
-              </p>
-            </a>
-
-            <a
-              href="https://cfrss.a7a8524.workers.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
-            >
-              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
-                RSS Cloudflare Bypass
-              </h3>
-              <p className="text-sm text-gray-300">
-                Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
-              </p>
-            </a>
+        {/* Results Display */}
+        {loading && (
+          <div className="text-center text-gray-400 my-8">
+            <Loader size={48} className="animate-spin mx-auto mb-4 text-cyan-400" />
+            <p>Searching for games...</p>
           </div>
-        </div>
+        )}
 
-        {/* Footer */}
-        <div className="text-center mt-12 text-gray-400 text-sm">
-          <p>Powered by Cloudflare Workers • Search across multiple game sources</p>
-        </div>
+        {error && (
+          <div className="bg-red-500/20 text-red-300 p-4 rounded-lg border border-red-500 text-center my-8">
+            <p>{error}</p>
+          </div>
+        )}
+
+        {!hasSearched && !loadingRecent && (
+          <div className="my-8">
+            <h2 className="text-lg font-semibold text-gray-300 mb-4">
+              Recent Uploads
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {recentUploads.length > 0 ? (
+                recentUploads.map(post => renderResult(post))
+              ) : (
+                <p className="text-gray-400">No recent uploads found.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {hasSearched && !loading && results.length > 0 && (
+          <div className="my-8">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-300">
+                Search Results ({results.length})
+              </h2>
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-400">
+                {Object.entries(stats).map(([source, count]) => (
+                  <span key={source} className="bg-white/5 backdrop-blur-sm rounded-full px-3 py-1 text-xs">
+                    {source}: {count} results
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-6">
+              {results.map(post => renderResult(post))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center mt-12 text-gray-400 text-sm">
+        <p>Powered by Cloudflare Workers • Search across multiple game sources</p>
       </div>
     </div>
   );
