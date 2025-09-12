@@ -207,119 +207,152 @@ const GameSearchApp = () => {
   };
 
   const GameCard = ({ game }) => {
-    const posterData = extractGamePoster(game);
-    const { url: posterSrc, isProxied, originalUrl } = posterData;
-    const isImagePoster = posterSrc && posterSrc.startsWith('http');
-    const imageHasFailed = failedImages.has(game.id);
-    const shouldShowImage = isImagePoster && !imageHasFailed;
+  const [showAllLinks, setShowAllLinks] = useState(false); // ⬅️ expand/collapse state
 
-    return (
-      <div className="group">
-        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
-          <div className="relative h-64 overflow-hidden">
-            {shouldShowImage ? (
-              <>
-                <img
-                  src={posterSrc}
-                  alt={game.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
-                  <div className="text-4xl opacity-40">🎮</div>
-                </div>
-              </>
-            ) : (
-              <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
-                <div className="text-6xl opacity-40">🎮</div>
+  const posterData = extractGamePoster(game);
+  const { url: posterSrc, isProxied, originalUrl } = posterData;
+  const isImagePoster = posterSrc && posterSrc.startsWith('http');
+  const imageHasFailed = failedImages.has(game.id);
+  const shouldShowImage = isImagePoster && !imageHasFailed;
+
+  // show either 10 links or all
+  const linksToShow = showAllLinks
+    ? game.downloadLinks
+    : game.downloadLinks.slice(0, 10);
+
+  return (
+    <div className="group">
+      <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
+        <div className="relative h-64 overflow-hidden">
+          {shouldShowImage ? (
+            <>
+              <img
+                src={posterSrc}
+                alt={game.title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                onError={() => handleImageError(game.id, posterSrc, originalUrl)}
+                referrerPolicy="no-referrer"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
+                <div className="text-4xl opacity-40">🎮</div>
               </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
-            <div className="absolute top-4 right-4">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
+            </>
+          ) : (
+            <div
+              className={`flex w-full h-full bg-gradient-to-br ${
+                isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc
+              } items-center justify-center`}
+            >
+              <div className="text-6xl opacity-40">🎮</div>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
+          <div className="absolute top-4 right-4">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
                 game.source === 'SkidrowReloaded'
                   ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
                   : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
-              }`}>
-                {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
-              </span>
-            </div>
-            {game.downloadLinks && game.downloadLinks.length > 0 && (
-              <div className="absolute top-4 left-4">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white backdrop-blur-md shadow-lg shadow-blue-500/30">
-                  {game.downloadLinks.length} Links
-                </span>
-              </div>
-            )}
-            {process.env.NODE_ENV === 'development' && (
-              <>
-                {isProxied && shouldShowImage && !imageHasFailed && (
-                  <div className="absolute bottom-4 right-4">
-                    <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">PROXIED</span>
-                  </div>
-                )}
-                {imageHasFailed && isImagePoster && (
-                  <div className="absolute bottom-4 left-4">
-                    <span className="px-2 py-1 rounded text-xs bg-red-500/80 text-white" title={`Original: ${originalUrl}`}>IMG FAILED</span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div className="p-6 space-y-4">
-            <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
-              {game.title}
-            </h3>
-            <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-              {game.description}
-            </p>
-            <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
-              <span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
-              <a
-                href={game.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-cyan-400 transition-colors"
-              >
-                <ExternalLink className="w-3 h-3" /> Source
-              </a>
-            </div>
+              }`}
+            >
+              {game.source === 'SkidrowReloaded' ? 'SKIDROW' : 'GOG'}
+            </span>
           </div>
           {game.downloadLinks && game.downloadLinks.length > 0 && (
-            <div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
-              <div className="p-6 space-y-3">
-                <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                  <Download className="w-4 h-4 text-cyan-400" /> Download Options
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {game.downloadLinks.slice(0, 10).map((link, index) => (
-                    <a
-                      key={index}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 bg-gray-700/40 hover:bg-gradient-to-r hover:from-cyan-600/20 hover:to-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-cyan-400/50"
-                    >
-                      <span className="text-lg flex-shrink-0">{getServiceIcon(link.service)}</span>
-                      <span className="truncate flex-1 font-medium">{link.text || link.service}</span>
-                      <ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
-                    </a>
-                  ))}
-                  {game.downloadLinks.length > 10 && (
-                    <div className="col-span-full text-xs text-gray-400 text-center py-2 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                      +{game.downloadLinks.length - 10} more download options
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="absolute top-4 left-4">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white backdrop-blur-md shadow-lg shadow-blue-500/30">
+                {game.downloadLinks.length} Links
+              </span>
             </div>
           )}
+          {process.env.NODE_ENV === 'development' && (
+            <>
+              {isProxied && shouldShowImage && !imageHasFailed && (
+                <div className="absolute bottom-4 right-4">
+                  <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">
+                    PROXIED
+                  </span>
+                </div>
+              )}
+              {imageHasFailed && isImagePoster && (
+                <div className="absolute bottom-4 left-4">
+                  <span
+                    className="px-2 py-1 rounded text-xs bg-red-500/80 text-white"
+                    title={`Original: ${originalUrl}`}
+                  >
+                    IMG FAILED
+                  </span>
+                </div>
+              )}
+            </>
+          )}
         </div>
+        <div className="p-6 space-y-4">
+          <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
+            {game.title}
+          </h3>
+          <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
+            {game.description}
+          </p>
+          <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
+            <span className="flex items-center gap-1">
+              📅 {formatDate(game.date)}
+            </span>
+            <a
+              href={game.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-cyan-400 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" /> Source
+            </a>
+          </div>
+        </div>
+        {game.downloadLinks && game.downloadLinks.length > 0 && (
+          <div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+            <div className="p-6 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                <Download className="w-4 h-4 text-cyan-400" /> Download Options
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {linksToShow.map((link, index) => (
+                  <a
+                    key={index}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-700/40 hover:bg-gradient-to-r hover:from-cyan-600/20 hover:to-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-cyan-400/50"
+                  >
+                    <span className="text-lg flex-shrink-0">
+                      {getServiceIcon(link.service)}
+                    </span>
+                    <span className="truncate flex-1 font-medium">
+                      {link.text || link.service}
+                    </span>
+                    <ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
+                  </a>
+                ))}
+              </div>
+
+              {/* Expand/collapse button */}
+              {game.downloadLinks.length > 10 && (
+                <button
+                  onClick={() => setShowAllLinks(!showAllLinks)}
+                  className="w-full text-xs text-cyan-400 hover:text-cyan-300 text-center py-2 mt-2 bg-gray-700/30 rounded-lg border border-gray-600/30 transition"
+                >
+                  {showAllLinks
+                    ? 'Show less'
+                    : `+${game.downloadLinks.length - 10} more download options`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   const filteredResults = React.useMemo(() => {
     let currentResults = results;
