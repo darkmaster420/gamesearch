@@ -15,6 +15,7 @@ const GameSearchApp = () => {
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [failedImages, setFailedImages] = useState(new Set());
+  const [loadingImages, setLoadingImages] = useState(new Set());
   const searchInputRef = useRef(null);
 
   // Load search history from memory (removed localStorage)
@@ -107,37 +108,34 @@ const GameSearchApp = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  // CORS-safe image proxy function
+  // Improved CORS-safe image proxy function
   const getProxiedImageUrl = (originalUrl) => {
     if (!originalUrl || !originalUrl.startsWith('http')) {
       return null;
     }
     
-    // Option 1: Use a CORS proxy service
-    // return `https://cors-anywhere.herokuapp.com/${originalUrl}`;
-    
-    // Option 2: Use your Cloudflare Worker as a proxy
+    // Use your Cloudflare Worker as a proxy
     return `${WORKER_URL}/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-    
-    // Option 3: Use a public CORS proxy (less reliable)
-    // return `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`;
   };
 
+  // Improved image extraction with better fallback handling
   const extractGamePoster = (game) => {
-    // Use the image field from backend first (extracted from WordPress content)
-    if (game.image) {
+    // Use the image field from backend first
+    if (game.image && game.image.startsWith('http')) {
       const proxiedUrl = getProxiedImageUrl(game.image);
       if (proxiedUrl) {
-        return { url: proxiedUrl, isProxied: true };
+        return { url: proxiedUrl, isProxied: true, originalUrl: game.image };
       }
     }
     
     // Fallback: Try to extract poster from description
-    const posterMatch = game.description?.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)/i);
-    if (posterMatch) {
-      const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
-      if (proxiedUrl) {
-        return { url: proxiedUrl, isProxied: true };
+    if (game.description) {
+      const posterMatch = game.description.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp)/i);
+      if (posterMatch) {
+        const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
+        if (proxiedUrl) {
+          return { url: proxiedUrl, isProxied: true, originalUrl: posterMatch[0] };
+        }
       }
     }
     
@@ -154,7 +152,7 @@ const GameSearchApp = () => {
       'from-pink-600 to-purple-600'
     ];
     const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
-    return { url: colors[colorIndex], isProxied: false };
+    return { url: colors[colorIndex], isProxied: false, originalUrl: null };
   };
 
   const getServiceIcon = (service) => {
@@ -165,20 +163,39 @@ const GameSearchApp = () => {
     }
     if (serviceLower.includes('mega')) return '🟦';
     if (serviceLower.includes('mediafire')) return '🔥';
-    if (serviceLower.includes('google')) return '📁';
+    if (serviceLower.includes('google')) return '📗';
     return '💾';
   };
 
-  const handleImageError = (gameId, imageUrl) => {
+  const handleImageLoad = (gameId) => {
+    setLoadingImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(gameId);
+      return newSet;
+    });
+  };
+
+  const handleImageError = (gameId, imageUrl, originalUrl) => {
+    console.log(`Image failed to load for ${gameId}: ${imageUrl} (original: ${originalUrl})`);
+    
     setFailedImages(prev => new Set([...prev, gameId]));
-    console.log(`Image failed to load for ${gameId}: ${imageUrl}`);
+    setLoadingImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(gameId);
+      return newSet;
+    });
+  };
+
+  const handleImageLoadStart = (gameId) => {
+    setLoadingImages(prev => new Set([...prev, gameId]));
   };
 
   const GameCard = ({ game }) => {
     const posterData = extractGamePoster(game);
-    const { url: posterSrc, isProxied } = posterData;
-    const isImagePoster = posterSrc.startsWith('http');
+    const { url: posterSrc, isProxied, originalUrl } = posterData;
+    const isImagePoster = posterSrc && posterSrc.startsWith('http');
     const imageHasFailed = failedImages.has(game.id);
+    const imageIsLoading = loadingImages.has(game.id);
     const shouldShowImage = isImagePoster && !imageHasFailed;
     
     return (
@@ -190,18 +207,28 @@ const GameSearchApp = () => {
           <div className="relative h-64 overflow-hidden">
             {shouldShowImage ? (
               <>
+                {/* Loading overlay */}
+                {imageIsLoading && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center z-10">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader className="w-6 h-6 animate-spin text-cyan-400" />
+                      <div className="text-xs text-gray-400">Loading image...</div>
+                    </div>
+                  </div>
+                )}
+                
                 <img 
                   src={posterSrc} 
                   alt={game.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  onError={() => handleImageError(game.id, posterSrc)}
-                  referrerPolicy="no-referrer"
+                  className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${
+                    imageIsLoading ? 'opacity-0' : 'opacity-100'
+                  }`}
+                  onLoad={() => handleImageLoad(game.id)}
+                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
+                  onLoadStart={() => handleImageLoadStart(game.id)}
                   loading="lazy"
+                  crossOrigin="anonymous"
                 />
-                {/* Loading placeholder while image loads */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
-                  <div className="text-4xl opacity-40">🎮</div>
-                </div>
               </>
             ) : (
               /* Gradient Fallback - Always show for non-http URLs or failed images */
@@ -233,22 +260,25 @@ const GameSearchApp = () => {
               </div>
             )}
 
-            {/* Proxied Image Badge (for debugging) */}
-            {isProxied && shouldShowImage && (
-              <div className="absolute bottom-4 right-4">
-                <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">
-                  PROXIED
-                </span>
-              </div>
-            )}
+            {/* Status Badges for debugging - only show in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <>
+                {isProxied && shouldShowImage && !imageHasFailed && (
+                  <div className="absolute bottom-4 right-4">
+                    <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">
+                      PROXIED
+                    </span>
+                  </div>
+                )}
 
-            {/* Image Failed Badge (for debugging) */}
-            {imageHasFailed && isImagePoster && (
-              <div className="absolute bottom-4 left-4">
-                <span className="px-2 py-1 rounded text-xs bg-yellow-500/80 text-black">
-                  IMG FAILED
-                </span>
-              </div>
+                {imageHasFailed && isImagePoster && (
+                  <div className="absolute bottom-4 left-4">
+                    <span className="px-2 py-1 rounded text-xs bg-red-500/80 text-white" title={`Original: ${originalUrl}`}>
+                      IMG FAILED
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -567,7 +597,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Remove Pixeldrain download limits with a Cloudflare Worker proxy.
               </p>
-            </div>
+            </a>
 
             <a
               href="https://cfrss.a7a8524.workers.dev/"
@@ -581,7 +611,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
               </p>
-            </div>
+            </a>
           </div>
         </div>
 
