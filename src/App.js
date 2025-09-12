@@ -18,18 +18,24 @@ const GameSearchApp = () => {
   const [loadingImages, setLoadingImages] = useState(new Set());
   const searchInputRef = useRef(null);
 
-  // Load search history from memory (removed localStorage)
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  useEffect(() => {
-    if (!historyLoaded) {
-      setHistoryLoaded(true);
-    }
-  }, [historyLoaded]);
-
   // Load recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
+
+  // Load search history from localStorage on component mount
+   useEffect(() => {
+     try {
+       const savedHistory = localStorage.getItem('gameSearchHistory');
+       if (savedHistory) {
+         const parsedHistory = JSON.parse(savedHistory);
+         setSearchHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
+       }
+     } catch (error) {
+       console.error('Error loading search history:', error);
+       setSearchHistory([]);
+     }
+   }, []); // Empty dependency array means this runs once on mount
 
   // Save search to history (with localStorage persistence)
   const saveToHistory = (searchTerm) => {
