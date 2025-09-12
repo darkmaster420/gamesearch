@@ -14,26 +14,26 @@ const GameSearchApp = () => {
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [failedImages, setFailedImages] = useState(new Set());
   const searchInputRef = useRef(null);
 
-  // Load search history from localStorage
+  // Load search history from memory (removed localStorage)
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   useEffect(() => {
-    const saved = localStorage.getItem('gameSearchHistory');
-    if (saved) {
-      setSearchHistory(JSON.parse(saved));
+    if (!historyLoaded) {
+      setHistoryLoaded(true);
     }
-  }, []);
+  }, [historyLoaded]);
 
   // Load recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
 
-  // Save search to history
+  // Save search to history (in memory only)
   const saveToHistory = (searchTerm) => {
     const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem('gameSearchHistory', JSON.stringify(newHistory));
   };
 
   const fetchRecentUploads = async () => {
@@ -145,9 +145,16 @@ const GameSearchApp = () => {
     return '💾';
   };
 
+  const handleImageError = (gameId, imageUrl) => {
+    setFailedImages(prev => new Set([...prev, gameId]));
+    console.log(`Image failed to load for ${gameId}: ${imageUrl}`);
+  };
+
   const GameCard = ({ game }) => {
     const posterSrc = extractGamePoster(game);
     const isImagePoster = posterSrc.startsWith('http');
+    const imageHasFailed = failedImages.has(game.id);
+    const shouldShowImage = isImagePoster && !imageHasFailed;
     
     return (
       <div className="group">
@@ -156,26 +163,27 @@ const GameSearchApp = () => {
           
           {/* Poster Section */}
           <div className="relative h-64 overflow-hidden">
-            {isImagePoster ? (
-              <img 
-                src={posterSrc} 
-                alt={game.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                onError={(e) => {
-                  // Fallback to gradient if image fails
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            
-            {/* Gradient Fallback */}
-            <div 
-              className={`${!isImagePoster ? 'flex' : 'hidden'} w-full h-full bg-gradient-to-br ${posterSrc} items-center justify-center`}
-              style={{display: !isImagePoster ? 'flex' : 'none'}}
-            >
-              <div className="text-6xl opacity-40">🎮</div>
-            </div>
+            {shouldShowImage ? (
+              <>
+                <img 
+                  src={posterSrc} 
+                  alt={game.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={() => handleImageError(game.id, posterSrc)}
+                  crossOrigin="anonymous"
+                  loading="lazy"
+                />
+                {/* Loading placeholder while image loads */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                  <div className="text-4xl opacity-40">🎮</div>
+                </div>
+              </>
+            ) : (
+              /* Gradient Fallback - Always show for non-http URLs or failed images */
+              <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
+                <div className="text-6xl opacity-40">🎮</div>
+              </div>
+            )}
             
             {/* Overlay Gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
@@ -196,6 +204,15 @@ const GameSearchApp = () => {
               <div className="absolute top-4 left-4">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white backdrop-blur-md shadow-lg shadow-blue-500/30">
                   {game.downloadLinks.length} Links
+                </span>
+              </div>
+            )}
+
+            {/* Debug Badge - Show if image failed (remove in production) */}
+            {imageHasFailed && isImagePoster && (
+              <div className="absolute bottom-4 left-4">
+                <span className="px-2 py-1 rounded text-xs bg-yellow-500/80 text-black">
+                  IMG FAILED
                 </span>
               </div>
             )}
@@ -515,7 +532,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Remove Pixeldrain download limits with a Cloudflare Worker proxy.
               </p>
-            </a>
+            </div>
 
             <a
               href="https://cfrss.a7a8524.workers.dev/"
@@ -529,7 +546,7 @@ const GameSearchApp = () => {
               <p className="text-sm text-gray-300">
                 Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
               </p>
-            </a>
+            </div>
           </div>
         </div>
 
