@@ -16,28 +16,34 @@ const GameSearchApp = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [failedImages, setFailedImages] = useState(new Set());
   const [loadingImages, setLoadingImages] = useState(new Set());
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const searchInputRef = useRef(null);
+
+  // Load search history from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem('gameSearchHistory');
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory);
+        setSearchHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
+      setSearchHistory([]);
+    }
+  }, []);
 
   // Load recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
 
-  // Load search history from localStorage on component mount
-   useEffect(() => {
-     try {
-       const savedHistory = localStorage.getItem('gameSearchHistory');
-       if (savedHistory) {
-         const parsedHistory = JSON.parse(savedHistory);
-         setSearchHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
-       }
-     } catch (error) {
-       console.error('Error loading search history:', error);
-       setSearchHistory([]);
-     }
-   }, []); // Empty dependency array means this runs once on mount
-
-  // Save search to history (with localStorage persistence)
+  // Save search to history
   const saveToHistory = (searchTerm) => {
     const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
@@ -68,26 +74,45 @@ const GameSearchApp = () => {
     }
   };
 
-  const searchGames = async (searchQuery = query) => {
+  const searchGames = async (searchQuery = query, page = 1, append = false) => {
     if (!searchQuery.trim()) return;
 
-    setLoading(true);
+    if (page === 1) {
+      setLoading(true);
+      setHasSearched(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
     setError('');
-    setHasSearched(true);
     
     try {
       const params = new URLSearchParams({
         search: searchQuery.trim(),
-        site: siteFilter
+        site: siteFilter,
+        page: page.toString(),
+        limit: '10'
       });
       
       const response = await fetch(`${WORKER_URL}?${params}`);
       const data = await response.json();
       
       if (data.success) {
-        setResults(data.results || []);
+        if (append && page > 1) {
+          // Append new results to existing ones
+          setResults(prev => [...prev, ...(data.results || [])]);
+        } else {
+          // Replace results (first page)
+          setResults(data.results || []);
+        }
+        
         setStats(data.siteStats || {});
-        saveToHistory(searchQuery.trim());
+        setCurrentPage(page);
+        setHasMore(data.pagination?.hasMore || false);
+        
+        if (page === 1) {
+          saveToHistory(searchQuery.trim());
+        }
       } else {
         setError(data.error || 'Search failed');
       }
@@ -96,16 +121,21 @@ const GameSearchApp = () => {
       console.error('Search error:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
+    setCurrentPage(1);
+    setHasMore(false);
     searchGames();
   };
 
   const handleHistoryClick = (historyItem) => {
     setQuery(historyItem);
+    setCurrentPage(1);
+    setHasMore(false);
     searchGames(historyItem);
   };
 
@@ -115,6 +145,14 @@ const GameSearchApp = () => {
     setStats({});
     setError('');
     setHasSearched(false);
+    setCurrentPage(1);
+    setHasMore(false);
+  };
+
+  const loadMore = () => {
+    if (hasMore && !loadingMore && query.trim()) {
+      searchGames(query, currentPage + 1, true);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -176,7 +214,7 @@ const GameSearchApp = () => {
     }
     if (serviceLower.includes('mega')) return '🟦';
     if (serviceLower.includes('mediafire')) return '🔥';
-    if (serviceLower.includes('google')) return '📗';
+    if (serviceLower.includes('google')) return '🔗';
     return '💾';
   };
 
@@ -556,6 +594,39 @@ const GameSearchApp = () => {
                 <GameCard key={game.id} game={game} />
               ))}
             </div>
+
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="text-center mt-8">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:scale-100 inline-flex items-center gap-2 shadow-lg shadow-blue-500/25"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Loading more games...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Load More Games
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Results Counter */}
+            {results.length > 0 && (
+              <div className="text-center text-gray-400 text-sm mt-4">
+                Showing {results.length} games
+                {hasMore && (
+                  <span className="text-cyan-400"> • More available</span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
