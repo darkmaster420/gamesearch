@@ -14,26 +14,27 @@ const GameSearchApp = () => {
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [failedImages, setFailedImages] = useState(new Set());
+  const [loadingImages, setLoadingImages] = useState(new Set());
   const searchInputRef = useRef(null);
 
-  // Load search history from localStorage
+  // Load search history from memory (removed localStorage)
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   useEffect(() => {
-    const saved = localStorage.getItem('gameSearchHistory');
-    if (saved) {
-      setSearchHistory(JSON.parse(saved));
+    if (!historyLoaded) {
+      setHistoryLoaded(true);
     }
-  }, []);
+  }, [historyLoaded]);
 
   // Load recent uploads on component mount
   useEffect(() => {
     fetchRecentUploads();
   }, []);
 
-  // Save search to history
+  // Save search to history (in memory only)
   const saveToHistory = (searchTerm) => {
     const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem('gameSearchHistory', JSON.stringify(newHistory));
   };
 
   const fetchRecentUploads = async () => {
@@ -107,15 +108,36 @@ const GameSearchApp = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Improved CORS-safe image proxy function
+  const getProxiedImageUrl = (originalUrl) => {
+    if (!originalUrl || !originalUrl.startsWith('http')) {
+      return null;
+    }
+    
+    // Use your Cloudflare Worker as a proxy
+    return `${WORKER_URL}/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+  };
+
+  // Improved image extraction with better fallback handling
   const extractGamePoster = (game) => {
-    // Use the image field from backend first (extracted from WordPress content)
-    if (game.image) {
-      return game.image;
+    // Use the image field from backend first
+    if (game.image && game.image.startsWith('http')) {
+      const proxiedUrl = getProxiedImageUrl(game.image);
+      if (proxiedUrl) {
+        return { url: proxiedUrl, isProxied: true, originalUrl: game.image };
+      }
     }
     
     // Fallback: Try to extract poster from description
-    const posterMatch = game.description?.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)/i);
-    if (posterMatch) return posterMatch[0];
+    if (game.description) {
+      const posterMatch = game.description.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp)/i);
+      if (posterMatch) {
+        const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
+        if (proxiedUrl) {
+          return { url: proxiedUrl, isProxied: true, originalUrl: posterMatch[0] };
+        }
+      }
+    }
     
     // Generate a gradient based on game title for consistent colors
     const colors = [
@@ -130,7 +152,7 @@ const GameSearchApp = () => {
       'from-pink-600 to-purple-600'
     ];
     const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
-    return colors[colorIndex];
+    return { url: colors[colorIndex], isProxied: false, originalUrl: null };
   };
 
   const getServiceIcon = (service) => {
@@ -141,13 +163,39 @@ const GameSearchApp = () => {
     }
     if (serviceLower.includes('mega')) return '🟦';
     if (serviceLower.includes('mediafire')) return '🔥';
-    if (serviceLower.includes('google')) return '📁';
+    if (serviceLower.includes('google')) return '📗';
     return '💾';
   };
 
+  const handleImageLoad = (gameId) => {
+    setLoadingImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(gameId);
+      return newSet;
+    });
+  };
+
+  const handleImageError = (gameId, imageUrl, originalUrl) => {
+    console.log(`Image failed to load for ${gameId}: ${imageUrl} (original: ${originalUrl})`);
+    
+    setFailedImages(prev => new Set([...prev, gameId]));
+    setLoadingImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(gameId);
+      return newSet;
+    });
+  };
+
+  const handleImageLoadStart = (gameId) => {
+    setLoadingImages(prev => new Set([...prev, gameId]));
+  };
+
   const GameCard = ({ game }) => {
-    const posterSrc = extractGamePoster(game);
-    const isImagePoster = posterSrc.startsWith('http');
+    const posterData = extractGamePoster(game);
+    const { url: posterSrc, isProxied, originalUrl } = posterData;
+    const isImagePoster = posterSrc && posterSrc.startsWith('http');
+    const imageHasFailed = failedImages.has(game.id);
+    const shouldShowImage = isImagePoster && !imageHasFailed;
     
     return (
       <div className="group">
@@ -156,26 +204,27 @@ const GameSearchApp = () => {
           
           {/* Poster Section */}
           <div className="relative h-64 overflow-hidden">
-            {isImagePoster ? (
-              <img 
-                src={posterSrc} 
-                alt={game.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                onError={(e) => {
-                  // Fallback to gradient if image fails
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            
-            {/* Gradient Fallback */}
-            <div 
-              className={`${!isImagePoster ? 'flex' : 'hidden'} w-full h-full bg-gradient-to-br ${posterSrc} items-center justify-center`}
-              style={{display: !isImagePoster ? 'flex' : 'none'}}
-            >
-              <div className="text-6xl opacity-40">🎮</div>
-            </div>
+            {shouldShowImage ? (
+              <>
+                <img 
+                  src={posterSrc} 
+                  alt={game.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+                {/* Loading placeholder while image loads */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
+                  <div className="text-4xl opacity-40">🎮</div>
+                </div>
+              </>
+            ) : (
+              /* Gradient Fallback - Always show for non-http URLs or failed images */
+              <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
+                <div className="text-6xl opacity-40">🎮</div>
+              </div>
+            )}
             
             {/* Overlay Gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
@@ -198,6 +247,27 @@ const GameSearchApp = () => {
                   {game.downloadLinks.length} Links
                 </span>
               </div>
+            )}
+
+            {/* Status Badges for debugging - only show in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <>
+                {isProxied && shouldShowImage && !imageHasFailed && (
+                  <div className="absolute bottom-4 right-4">
+                    <span className="px-2 py-1 rounded text-xs bg-green-500/80 text-white">
+                      PROXIED
+                    </span>
+                  </div>
+                )}
+
+                {imageHasFailed && isImagePoster && (
+                  <div className="absolute bottom-4 left-4">
+                    <span className="px-2 py-1 rounded text-xs bg-red-500/80 text-white" title={`Original: ${originalUrl}`}>
+                      IMG FAILED
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -279,7 +349,7 @@ const GameSearchApp = () => {
 
         {/* Search Form */}
         <div className="max-w-4xl mx-auto mb-8">
-          <div onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
               <input
@@ -293,6 +363,7 @@ const GameSearchApp = () => {
               />
               {hasSearched && (
                 <button
+                  type="button"
                   onClick={clearSearch}
                   className="absolute right-4 top-4 h-5 w-5 text-gray-400 hover:text-white transition-colors"
                 >
@@ -326,7 +397,7 @@ const GameSearchApp = () => {
 
             <div className="text-center">
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={loading || !query.trim()}
                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl font-semibold transition-colors inline-flex items-center gap-2"
               >
@@ -334,7 +405,7 @@ const GameSearchApp = () => {
                 {loading ? 'Searching...' : 'Search Games'}
               </button>
             </div>
-          </div>
+          </form>
 
           {/* Search History */}
           {searchHistory.length > 0 && (
