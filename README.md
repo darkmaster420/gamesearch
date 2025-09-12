@@ -55,7 +55,7 @@ npm install
 npm run dev
 ```
 
-🌐 API Backend
+## 🌐 API Backend
 
 This app relies on a companion API built with Cloudflare Workers.
 👉 Check out the backend repo here: Game Search API
@@ -82,7 +82,7 @@ Example response:
 
 ---
 
-🛣️ Roadmap
+## 🛣️ Roadmap
 
 [ ] Add more sources (e.g. GOGGames, DodiRepacks)
 
@@ -96,14 +96,14 @@ Example response:
 
 ---
 
-📜 License
+## 📜 License
 
 MIT License. Do whatever you want, just don’t sue me.
 
 
 ---
 
-❤️ Acknowledgements
+## ❤️ Acknowledgements
 
 SkidrowReloaded
 
