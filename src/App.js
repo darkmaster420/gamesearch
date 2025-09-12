@@ -5,6 +5,7 @@ const WORKER_URL = 'https://gameapi.a7a8524.workers.dev'; // Replace with your a
 
 const GameSearchApp = () => {
   const [query, setQuery] = useState('');
+  const [refineQuery, setRefineQuery] = useState('');
   const [results, setResults] = useState([]);
   const [recentUploads, setRecentUploads] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,7 +15,7 @@ const GameSearchApp = () => {
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
-  const [failedImages, setFailedImages] = useState(new Set());
+  const [failedImages, setFailedImages] = new useState(new Set());
 
   const searchInputRef = useRef(null);
 
@@ -79,6 +80,7 @@ const GameSearchApp = () => {
     setError('');
     setQuery('');
     setStats({});
+    setRefineQuery(''); // Clear refine query as well
     try {
       const response = await fetch(`${WORKER_URL}/recent`);
       const data = await response.json();
@@ -140,6 +142,7 @@ const GameSearchApp = () => {
 
   const clearSearch = () => {
     setQuery('');
+    setRefineQuery('');
     setResults([]);
     setStats({});
     setError('');
@@ -318,17 +321,31 @@ const GameSearchApp = () => {
     );
   };
 
-  // Logic to filter results based on siteFilter
   const filteredResults = React.useMemo(() => {
-    if (siteFilter === 'both') {
-      return results;
+    let currentResults = results;
+
+    // Apply site filter
+    if (siteFilter !== 'both') {
+      const sourceMap = {
+        skidrow: 'SkidrowReloaded',
+        freegog: 'FreeGOGPCGames',
+      };
+      currentResults = currentResults.filter(game => game.source === sourceMap[siteFilter]);
     }
-    const sourceMap = {
-      skidrow: 'SkidrowReloaded',
-      freegog: 'FreeGOGPCGames',
-    };
-    return results.filter(game => game.source === sourceMap[siteFilter]);
-  }, [results, siteFilter]);
+
+    // Apply refine query filter
+    if (refineQuery.trim()) {
+      const lowerCaseRefineQuery = refineQuery.trim().toLowerCase();
+      currentResults = currentResults.filter(game =>
+        game.title?.toLowerCase().includes(lowerCaseRefineQuery) ||
+        game.description?.toLowerCase().includes(lowerCaseRefineQuery) ||
+        game.slug?.toLowerCase().includes(lowerCaseRefineQuery) ||
+        game.excerpt?.toLowerCase().includes(lowerCaseRefineQuery)
+      );
+    }
+    
+    return currentResults;
+  }, [results, siteFilter, refineQuery]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
@@ -342,25 +359,39 @@ const GameSearchApp = () => {
         {/* Search Form */}
         <div className="max-w-4xl mx-auto mb-8">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="Search for games..."
-                className="w-full pl-12 pr-12 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              {hasSearched && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="absolute right-4 top-4 h-5 w-5 text-gray-400 hover:text-white transition-colors"
-                >
-                  <X />
-                </button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+                  placeholder="Search for games..."
+                  className="w-full pl-12 pr-12 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {hasSearched && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-4 top-4 h-5 w-5 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <X />
+                  </button>
+                )}
+              </div>
+              {hasSearched && results.length > 0 && (
+                <div className="relative flex-1">
+                  <Filter className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={refineQuery}
+                    onChange={(e) => setRefineQuery(e.target.value)}
+                    placeholder="Refine results (e.g., v1.5, multiplayer)..."
+                    className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
               )}
             </div>
 
