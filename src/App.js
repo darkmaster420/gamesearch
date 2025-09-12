@@ -31,10 +31,17 @@ const GameSearchApp = () => {
     fetchRecentUploads();
   }, []);
 
-  // Save search to history (in memory only)
+  // Save search to history (with localStorage persistence)
   const saveToHistory = (searchTerm) => {
     const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('gameSearchHistory', JSON.stringify(newHistory));
+    } catch (error) {
+      console.error('Error saving search history:', error);
+    }
   };
 
   const fetchRecentUploads = async () => {
