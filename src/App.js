@@ -17,9 +17,11 @@ const GameSearchApp = () => {
   const [failedImages, setFailedImages] = useState(new Set());
   const [loadingImages, setLoadingImages] = useState(new Set());
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  // Pagination state - separate for search and recent uploads
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [recentPage, setRecentPage] = useState(1);
+  const [recentHasMore, setRecentHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   
   const searchInputRef = useRef(null);
@@ -40,7 +42,7 @@ const GameSearchApp = () => {
 
   // Load recent uploads on component mount
   useEffect(() => {
-    fetchRecentUploads();
+    fetchRecentUploads(1, false);
   }, []);
 
   // Save search to history
@@ -56,14 +58,32 @@ const GameSearchApp = () => {
     }
   };
 
-  const fetchRecentUploads = async () => {
-    setLoadingRecent(true);
+  // Updated fetchRecentUploads with pagination support
+  const fetchRecentUploads = async (page = 1, append = false) => {
+    if (page === 1) {
+      setLoadingRecent(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
     try {
-      const response = await fetch(`${WORKER_URL}/recent`);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '10'
+      });
+      
+      const response = await fetch(`${WORKER_URL}/recent?${params}`);
       const data = await response.json();
       
       if (data.success) {
-        setRecentUploads(data.results || []);
+        if (append && page > 1) {
+          setRecentUploads(prev => [...prev, ...(data.results || [])]);
+        } else {
+          setRecentUploads(data.results || []);
+        }
+        
+        setRecentPage(page);
+        setRecentHasMore(data.pagination?.hasMore || false);
       } else {
         console.error('Failed to fetch recent uploads:', data.error);
       }
@@ -71,9 +91,11 @@ const GameSearchApp = () => {
       console.error('Recent uploads error:', err);
     } finally {
       setLoadingRecent(false);
+      setLoadingMore(false);
     }
   };
 
+  // Updated searchGames with proper pagination handling
   const searchGames = async (searchQuery = query, page = 1, append = false) => {
     if (!searchQuery.trim()) return;
 
@@ -107,8 +129,8 @@ const GameSearchApp = () => {
         }
         
         setStats(data.siteStats || {});
-        setCurrentPage(page);
-        setHasMore(data.pagination?.hasMore || false);
+        setSearchPage(page);
+        setSearchHasMore(data.pagination?.hasMore || false);
         
         if (page === 1) {
           saveToHistory(searchQuery.trim());
@@ -127,31 +149,42 @@ const GameSearchApp = () => {
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    setCurrentPage(1);
-    setHasMore(false);
+    setSearchPage(1);
+    setSearchHasMore(false);
     searchGames();
   };
 
   const handleHistoryClick = (historyItem) => {
     setQuery(historyItem);
-    setCurrentPage(1);
-    setHasMore(false);
+    setSearchPage(1);
+    setSearchHasMore(false);
     searchGames(historyItem);
   };
 
+  // Updated clearSearch to reset pagination properly
   const clearSearch = () => {
     setQuery('');
     setResults([]);
     setStats({});
     setError('');
     setHasSearched(false);
-    setCurrentPage(1);
-    setHasMore(false);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    
+    // Reload recent uploads when clearing search
+    fetchRecentUploads(1, false);
   };
 
+  // Updated loadMore function to handle both search and recent uploads
   const loadMore = () => {
-    if (hasMore && !loadingMore && query.trim()) {
-      searchGames(query, currentPage + 1, true);
+    if (!loadingMore) {
+      if (hasSearched && query.trim() && searchHasMore) {
+        // Load more search results
+        searchGames(query, searchPage + 1, true);
+      } else if (!hasSearched && recentHasMore) {
+        // Load more recent uploads
+        fetchRecentUploads(recentPage + 1, true);
+      }
     }
   };
 
@@ -523,7 +556,7 @@ const GameSearchApp = () => {
                   </div>
                   <div className="text-right">
                     <button
-                      onClick={fetchRecentUploads}
+                      onClick={() => fetchRecentUploads(1, false)}
                       disabled={loadingRecent}
                       className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-400/50 rounded-lg text-purple-300 hover:text-white transition-all duration-200 text-sm font-medium flex items-center gap-2"
                     >
@@ -546,11 +579,44 @@ const GameSearchApp = () => {
                 <p className="text-gray-400">Loading recent uploads...</p>
               </div>
             ) : recentUploads.length > 0 ? (
-              <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-                {recentUploads.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+                  {recentUploads.map((game) => (
+                    <GameCard key={game.id} game={game} />
+                  ))}
+                </div>
+
+                {/* Load More Button for Recent Uploads */}
+                {recentHasMore && (
+                  <div className="text-center mt-8">
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="px-8 py-3 bg-gradient-to-r from-purple-600 to-orange-600 hover:from-purple-700 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:scale-100 inline-flex items-center gap-2 shadow-lg shadow-purple-500/25"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          Loading more...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-5 h-5" />
+                          Load More Recent Uploads
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Results Counter for Recent Uploads */}
+                <div className="text-center text-gray-400 text-sm mt-4">
+                  Showing {recentUploads.length} recent uploads
+                  {recentHasMore && (
+                    <span className="text-cyan-400"> • More available</span>
+                  )}
+                </div>
+              </>
             ) : (
               <div className="text-center text-gray-400 py-12">
                 <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -595,8 +661,8 @@ const GameSearchApp = () => {
               ))}
             </div>
 
-            {/* Load More Button */}
-            {hasMore && (
+            {/* Load More Button for Search Results */}
+            {searchHasMore && (
               <div className="text-center mt-8">
                 <button
                   onClick={loadMore}
@@ -606,27 +672,25 @@ const GameSearchApp = () => {
                   {loadingMore ? (
                     <>
                       <Loader className="w-5 h-5 animate-spin" />
-                      Loading more games...
+                      Loading more...
                     </>
                   ) : (
                     <>
                       <Download className="w-5 h-5" />
-                      Load More Games
+                      Load More Search Results
                     </>
                   )}
                 </button>
               </div>
             )}
 
-            {/* Results Counter */}
-            {results.length > 0 && (
-              <div className="text-center text-gray-400 text-sm mt-4">
-                Showing {results.length} games
-                {hasMore && (
-                  <span className="text-cyan-400"> • More available</span>
-                )}
-              </div>
-            )}
+            {/* Results Counter for Search */}
+            <div className="text-center text-gray-400 text-sm mt-4">
+              Showing {results.length} search results
+              {searchHasMore && (
+                <span className="text-cyan-400"> • More available</span>
+              )}
+            </div>
           </div>
         )}
 
