@@ -195,7 +195,6 @@ const GameSearchApp = () => {
     const { url: posterSrc, isProxied, originalUrl } = posterData;
     const isImagePoster = posterSrc && posterSrc.startsWith('http');
     const imageHasFailed = failedImages.has(game.id);
-    const imageIsLoading = loadingImages.has(game.id);
     const shouldShowImage = isImagePoster && !imageHasFailed;
     
     return (
@@ -206,16 +205,20 @@ const GameSearchApp = () => {
           {/* Poster Section */}
           <div className="relative h-64 overflow-hidden">
             {shouldShowImage ? (
-              <img 
-                src={posterSrc} 
-                alt={game.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                onLoad={() => handleImageLoad(game.id)}
-                onError={() => handleImageError(game.id, posterSrc, originalUrl)}
-                onLoadStart={() => handleImageLoadStart(game.id)}
-                loading="lazy"
-                crossOrigin="anonymous"
-              />
+              <>
+                <img 
+                  src={posterSrc} 
+                  alt={game.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+                {/* Loading placeholder while image loads */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity">
+                  <div className="text-4xl opacity-40">🎮</div>
+                </div>
+              </>
             ) : (
               /* Gradient Fallback - Always show for non-http URLs or failed images */
               <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
