@@ -206,30 +206,16 @@ const GameSearchApp = () => {
           {/* Poster Section */}
           <div className="relative h-64 overflow-hidden">
             {shouldShowImage ? (
-              <>
-                {/* Background placeholder that shows while loading */}
-                <div className={`absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center transition-opacity duration-300 ${
-                  imageIsLoading ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader className="w-6 h-6 animate-spin text-cyan-400" />
-                    <div className="text-xs text-gray-400">Loading image...</div>
-                  </div>
-                </div>
-                
-                <img 
-                  src={posterSrc} 
-                  alt={game.title}
-                  className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-500 ${
-                    imageIsLoading ? 'opacity-0' : 'opacity-100'
-                  }`}
-                  onLoad={() => handleImageLoad(game.id)}
-                  onError={() => handleImageError(game.id, posterSrc, originalUrl)}
-                  onLoadStart={() => handleImageLoadStart(game.id)}
-                  loading="lazy"
-                  crossOrigin="anonymous"
-                />
-              </>
+              <img 
+                src={posterSrc} 
+                alt={game.title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                onLoad={() => handleImageLoad(game.id)}
+                onError={() => handleImageError(game.id, posterSrc, originalUrl)}
+                onLoadStart={() => handleImageLoadStart(game.id)}
+                loading="lazy"
+                crossOrigin="anonymous"
+              />
             ) : (
               /* Gradient Fallback - Always show for non-http URLs or failed images */
               <div className={`flex w-full h-full bg-gradient-to-br ${isImagePoster ? 'from-gray-700 to-gray-800' : posterSrc} items-center justify-center`}>
