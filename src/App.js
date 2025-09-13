@@ -11,7 +11,7 @@ const GameSearchApp = () => {
   const [loading, setLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [error, setError] = useState('');
-  const [siteFilter, setSiteFilter] = useState('both');
+  const [siteFilter, setSiteFilter] = useState('all');
   const [stats, setStats] = useState({});
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -378,7 +378,7 @@ const GameSearchApp = () => {
   const filteredResults = React.useMemo(() => {
     let currentResults = results;
 
-    if (siteFilter !== 'both') {
+    if (siteFilter !== 'all') {
       const sourceMap = {
         skidrow: 'SkidrowReloaded',
         freegog: 'FreeGOGPCGames',
@@ -451,9 +451,10 @@ const GameSearchApp = () => {
             {/* Site Filter */}
             <div className="flex flex-wrap gap-3 justify-center">
               {[
-                { value: 'both', label: 'Both Sites', color: 'from-purple-500 to-pink-500' },
+                { value: 'all', label: 'All Sites', color: 'from-purple-500 to-pink-500' },
                 { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
-                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' }
+                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' },
+                { value: 'gamedrive', label: 'GameDrive', color: 'from-blue-500 to-cyan-500' }
               ].map(option => (
                 <button
                   key={option.value}
@@ -603,12 +604,18 @@ const GameSearchApp = () => {
                       {Object.entries(stats).map(([site, count]) => (
                         <span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
                           site === 'SkidrowReloaded'
-                            ? 'bg-red-500/20 text-red-300 border border-red-400/50'
-                            : 'bg-green-500/20 text-green-300 border border-green-400/50'
-                        }`}>
-                          {site === 'SkidrowReloaded' ? 'Skidrow' : 'GOG'}: {count}
+                          ? 'bg-red-500/20 text-red-300 border border-red-400/50'
+                          : site === 'FreeGOGPCGames'
+                          ? 'bg-green-500/20 text-green-300 border border-green-400/50'
+                          : 'bg-purple-500/20 text-purple-300 border border-purple-400/50'
+                          }`}>
+                        {site === 'SkidrowReloaded'
+                          ? 'Skidrow'
+                          : site === 'FreeGOGPCGames'
+                          ? 'GOG'
+                          : 'GameDrive'}: {count}
                         </span>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 </div>
