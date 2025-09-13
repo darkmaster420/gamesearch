@@ -16,10 +16,11 @@ const GameSearchApp = () => {
   const [searchHistory, setSearchHistory] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [failedImages, setFailedImages] = useState(new Set());
-  const [decryptedLinks, setDecryptedLinks] = useState({}); // ✅ store decrypted crypt links
+  const [decryptedLinks, setDecryptedLinks] = useState({}); // store decrypted crypt links
 
   const searchInputRef = useRef(null);
 
+  // Load search history
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem('gameSearchHistory');
@@ -33,10 +34,12 @@ const GameSearchApp = () => {
     }
   }, []);
 
+  // Fetch recent uploads on load
   useEffect(() => {
     fetchRecentUploads();
   }, []);
-  
+
+  // Update title + favicon
   useEffect(() => {
     let newTitle = 'GameSearch';
     if (hasSearched && query) {
@@ -47,17 +50,18 @@ const GameSearchApp = () => {
       newTitle = `GameSearch: Recent Uploads`;
     }
     document.title = newTitle;
-    
+
     const link = document.createElement('link');
     link.rel = 'icon';
-    link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>';
-    
+    link.href =
+      'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>';
+
     const existingLink = document.querySelector("link[rel~='icon']");
     if (existingLink) {
       existingLink.remove();
     }
     document.head.appendChild(link);
-    
+
     return () => {
       document.title = 'GameSearch';
       link.remove();
@@ -65,7 +69,7 @@ const GameSearchApp = () => {
   }, [query, hasSearched, results.length, recentUploads.length]);
 
   const saveToHistory = (searchTerm) => {
-    const newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)].slice(0, 10);
+    const newHistory = [searchTerm, ...searchHistory.filter((h) => h !== searchTerm)].slice(0, 10);
     setSearchHistory(newHistory);
     try {
       localStorage.setItem('gameSearchHistory', JSON.stringify(newHistory));
@@ -150,7 +154,7 @@ const GameSearchApp = () => {
     setHasSearched(false);
     fetchRecentUploads();
   };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
@@ -175,7 +179,9 @@ const GameSearchApp = () => {
       }
     }
     if (game.description) {
-      const posterMatch = game.description.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp)/i);
+      const posterMatch = game.description.match(
+        /https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp)/i
+      );
       if (posterMatch) {
         const proxiedUrl = getProxiedImageUrl(posterMatch[0]);
         if (proxiedUrl) {
@@ -184,9 +190,15 @@ const GameSearchApp = () => {
       }
     }
     const colors = [
-      'from-purple-600 to-blue-600', 'from-blue-600 to-cyan-600', 'from-cyan-600 to-teal-600',
-      'from-teal-600 to-green-600', 'from-green-600 to-yellow-600', 'from-yellow-600 to-orange-600',
-      'from-orange-600 to-red-600', 'from-red-600 to-pink-600', 'from-pink-600 to-purple-600'
+      'from-purple-600 to-blue-600',
+      'from-blue-600 to-cyan-600',
+      'from-cyan-600 to-teal-600',
+      'from-teal-600 to-green-600',
+      'from-green-600 to-yellow-600',
+      'from-yellow-600 to-orange-600',
+      'from-orange-600 to-red-600',
+      'from-red-600 to-pink-600',
+      'from-pink-600 to-purple-600',
     ];
     const colorIndex = game.title?.charCodeAt(0) % colors.length || 0;
     return { url: colors[colorIndex], isProxied: false, originalUrl: null };
@@ -204,26 +216,26 @@ const GameSearchApp = () => {
 
   const handleImageError = (gameId, imageUrl, originalUrl) => {
     console.log(`Image failed to load for ${gameId}: ${imageUrl} (original: ${originalUrl})`);
-    setFailedImages(prev => new Set([...prev, gameId]));
+    setFailedImages((prev) => new Set([...prev, gameId]));
   };
 
-  // ✅ handle crypt link clicks & caching
+  // handle crypt link clicks & caching
   const handleCryptClick = async (e, cryptUrl) => {
     e.preventDefault();
     const hash = cryptUrl.split('#')[1];
     if (!hash) return;
-    
+
     if (decryptedLinks[hash]) {
       window.open(decryptedLinks[hash].resolvedUrl, '_blank');
       return;
     }
-    
+
     try {
       const resp = await fetch(`${WORKER_URL}/decrypt?hash=${encodeURIComponent(hash)}`);
       const data = await resp.json();
-      
+
       if (data.success && data.resolvedUrl) {
-        setDecryptedLinks(prev => ({ ...prev, [hash]: data }));
+        setDecryptedLinks((prev) => ({ ...prev, [hash]: data }));
         window.open(data.resolvedUrl, '_blank');
       } else {
         alert(data.error || 'Failed to decrypt link');
@@ -238,14 +250,12 @@ const GameSearchApp = () => {
     const [showAllLinks, setShowAllLinks] = useState(false);
 
     const posterData = extractGamePoster(game);
-    const { url: posterSrc, isProxied, originalUrl } = posterData;
+    const { url: posterSrc, originalUrl } = posterData;
     const isImagePoster = posterSrc && posterSrc.startsWith('http');
     const imageHasFailed = failedImages.has(game.id);
     const shouldShowImage = isImagePoster && !imageHasFailed;
 
-    const linksToShow = showAllLinks
-      ? game.downloadLinks
-      : game.downloadLinks.slice(0, 10);
+    const linksToShow = showAllLinks ? game.downloadLinks : game.downloadLinks.slice(0, 10);
 
     return (
       <div className="group">
@@ -300,13 +310,9 @@ const GameSearchApp = () => {
             <h3 className="font-bold text-xl text-white leading-tight group-hover:text-cyan-400 transition-colors">
               {game.title}
             </h3>
-            <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-              {game.description}
-            </p>
+            <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">{game.description}</p>
             <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
-              <span className="flex items-center gap-1">
-                📅 {formatDate(game.date)}
-              </span>
+              <span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
               <a
                 href={game.link}
                 target="_blank"
@@ -334,8 +340,8 @@ const GameSearchApp = () => {
                         key={index}
                         href={link.url}
                         onClick={isCrypt ? (e) => handleCryptClick(e, link.url) : undefined}
-                        target={isCrypt ? undefined : "_blank"}
-                        rel={isCrypt ? undefined : "noopener noreferrer"}
+                        target={isCrypt ? undefined : '_blank'}
+                        rel={isCrypt ? undefined : 'noopener noreferrer'}
                         className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors"
                       >
                         <span className="text-lg flex-shrink-0">
@@ -382,21 +388,22 @@ const GameSearchApp = () => {
       const sourceMap = {
         skidrow: 'SkidrowReloaded',
         freegog: 'FreeGOGPCGames',
-        gamedrive: 'GameDrive'
+        gamedrive: 'GameDrive',
       };
-      currentResults = currentResults.filter(game => game.source === sourceMap[siteFilter]);
+      currentResults = currentResults.filter((game) => game.source === sourceMap[siteFilter]);
     }
 
     if (refineQuery.trim()) {
       const lowerCaseRefineQuery = refineQuery.trim().toLowerCase();
-      currentResults = currentResults.filter(game =>
-        game.title?.toLowerCase().includes(lowerCaseRefineQuery) ||
-        game.description?.toLowerCase().includes(lowerCaseRefineQuery) ||
-        game.slug?.toLowerCase().includes(lowerCaseRefineQuery) ||
-        game.excerpt?.toLowerCase().includes(lowerCaseRefineQuery)
+      currentResults = currentResults.filter(
+        (game) =>
+          game.title?.toLowerCase().includes(lowerCaseRefineQuery) ||
+          game.description?.toLowerCase().includes(lowerCaseRefineQuery) ||
+          game.slug?.toLowerCase().includes(lowerCaseRefineQuery) ||
+          game.excerpt?.toLowerCase().includes(lowerCaseRefineQuery)
       );
     }
-    
+
     return currentResults;
   }, [results, siteFilter, refineQuery]);
 
@@ -437,25 +444,26 @@ const GameSearchApp = () => {
             {/* Site Filter */}
             <div className="flex flex-wrap gap-3 justify-center">
               {[
-                { value: 'both', label: 'Both Sites', color: 'from-purple-500 to-pink-500' },
+                { value: 'all', label: 'All Sites', color: 'from-purple-500 to-pink-500' },
                 { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
-                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' }
-              ].map(option => (
+                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' },
+                { value: 'gamedrive', label: 'GameDrive', color: 'from-blue-500 to-cyan-500' }, // ✅ restored
+                ].map(option => (
                 <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSiteFilter(option.value)}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                    siteFilter === option.value
-                      ? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
+                key={option.value}
+                type="button"
+                onClick={() => setSiteFilter(option.value)}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  siteFilter === option.value
+                  ? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
                   }`}
                 >
-                  <Filter className="inline w-4 h-4 mr-2" />
-                  {option.label}
+                <Filter className="inline w-4 h-4 mr-2" />
+                {option.label}
                 </button>
-              ))}
-            </div>
+                ))}
+  </div>
 
             <div className="text-center">
               <button
