@@ -212,18 +212,19 @@ const GameSearchApp = () => {
     e.preventDefault();
     const hash = cryptUrl.split('#')[1];
     if (!hash) return;
-
+    
     if (decryptedLinks[hash]) {
-      window.open(decryptedLinks[hash].url, '_blank');
+      window.open(decryptedLinks[hash].resolvedUrl, '_blank');
       return;
     }
-
+    
     try {
       const resp = await fetch(`${WORKER_URL}/decrypt?hash=${encodeURIComponent(hash)}`);
       const data = await resp.json();
-      if (resolvedUrl) {
+      
+      if (data.success && data.resolvedUrl) {
         setDecryptedLinks(prev => ({ ...prev, [hash]: data }));
-        window.open(resolvedUrl, '_blank');
+        window.open(data.resolvedUrl, '_blank');
       } else {
         alert(data.error || 'Failed to decrypt link');
       }
@@ -331,11 +332,11 @@ const GameSearchApp = () => {
                     return (
                       <a
                         key={index}
-                        href={isCrypt ? '#' : link.url}
+                        href={link.url}
                         onClick={isCrypt ? (e) => handleCryptClick(e, link.url) : undefined}
                         target={isCrypt ? undefined : "_blank"}
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 bg-gray-700/40 hover:bg-gradient-to-r hover:from-cyan-600/20 hover:to-blue-600/20 rounded-lg text-sm text-gray-300 hover:text-white transition-all duration-200 group/link border border-gray-600/30 hover:border-cyan-400/50"
+                        rel={isCrypt ? undefined : "noopener noreferrer"}
+                        className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors"
                       >
                         <span className="text-lg flex-shrink-0">
                           {isCrypt
@@ -356,7 +357,6 @@ const GameSearchApp = () => {
                     );
                   })}
                 </div>
-
                 {game.downloadLinks.length > 10 && (
                   <button
                     onClick={() => setShowAllLinks(!showAllLinks)}
@@ -433,271 +433,4 @@ const GameSearchApp = () => {
                     <X />
                   </button>
                 )}
-              </div>
-              {hasSearched && results.length > 0 && (
-                <div className="relative flex-1">
-                  <Filter className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={refineQuery}
-                    onChange={(e) => setRefineQuery(e.target.value)}
-                    placeholder="Refine results (e.g., v1.5, multiplayer)..."
-                    className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Site Filter */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              {[
-                { value: 'all', label: 'All Sites', color: 'from-purple-500 to-pink-500' },
-                { value: 'skidrow', label: 'SkidRow', color: 'from-red-500 to-orange-500' },
-                { value: 'freegog', label: 'FreeGOG', color: 'from-green-500 to-emerald-500' },
-                { value: 'gamedrive', label: 'GameDrive', color: 'from-blue-500 to-cyan-500' }
-              ].map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSiteFilter(option.value)}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                    siteFilter === option.value
-                      ? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
-                  }`}
-                >
-                  <Filter className="inline w-4 h-4 mr-2" />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-center">
-              <button
-                type="submit"
-                disabled={loading || !query.trim()}
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-xl font-semibold transition-colors inline-flex items-center gap-2"
-              >
-                {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                {loading ? 'Searching...' : 'Search Games'}
-              </button>
-            </div>
-          </form>
-
-          {/* Search History */}
-          {searchHistory.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-300 mb-2">Recent searches:</p>
-              <div className="flex flex-wrap gap-2">
-                {searchHistory.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleHistoryClick(item)}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 text-gray-300 rounded-full text-sm transition-colors"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats (only show when there are search results) */}
-        {hasSearched && Object.keys(stats).length > 0 && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-              <div className="flex flex-wrap gap-4 justify-center text-sm text-gray-300">
-                {Object.entries(stats).map(([site, count]) => (
-                  <span key={site} className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                    {site}: {count} results
-                  </span>
-                ))}
-                <span className="flex items-center gap-1 font-semibold">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Total: {results.length}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-red-200 text-center">
-              <X className="inline w-5 h-5 mr-2" />
-              {error}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Uploads Section - Show when no search has been made */}
-        {!hasSearched && (
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-purple-600/20 to-orange-600/20 backdrop-blur-md rounded-2xl border border-purple-500/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                      <Clock className="w-7 h-7 text-orange-400" />
-                      Recent Uploads
-                    </h2>
-                    <p className="text-purple-200">Latest games uploaded across all sources</p>
-                  </div>
-                  <div className="text-right">
-                    <button
-                      onClick={fetchRecentUploads}
-                      disabled={loadingRecent}
-                      className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-400/50 rounded-lg text-purple-300 hover:text-white transition-all duration-200 text-sm font-medium flex items-center gap-2"
-                    >
-                      {loadingRecent ? (
-                        <Loader className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Clock className="w-4 h-4" />
-                      )}
-                      {loadingRecent ? 'Loading...' : 'Refresh'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {loadingRecent ? (
-              <div className="text-center py-12">
-                <Loader className="w-12 h-12 mx-auto mb-4 animate-spin text-purple-400" />
-                <p className="text-gray-400">Loading recent uploads...</p>
-              </div>
-            ) : recentUploads.length > 0 ? (
-              <>
-                <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-                  {recentUploads.map((game) => (
-                    <GameCard key={game.id} game={game} />
-                  ))}
-                </div>
-                <div className="text-center text-gray-400 text-sm mt-4">
-                  Showing {recentUploads.length} recent uploads
-                </div>
-              </>
-            ) : (
-              <div className="text-center text-gray-400 py-12">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No recent uploads available</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Search Results - Show when search has been made */}
-        {hasSearched && filteredResults.length > 0 && (
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl border border-blue-500/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Search Results</h2>
-                    <p className="text-blue-200">Found {filteredResults.length} games</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex flex-wrap gap-3 justify-end">
-                      {Object.entries(stats).map(([site, count]) => (
-                        <span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          site === 'SkidrowReloaded'
-                          ? 'bg-red-500/20 text-red-300 border border-red-400/50'
-                          : site === 'FreeGOGPCGames'
-                          ? 'bg-green-500/20 text-green-300 border border-green-400/50'
-                          : 'bg-purple-500/20 text-purple-300 border border-purple-400/50'
-                          }`}>
-                        {site === 'SkidrowReloaded'
-                          ? 'Skidrow'
-                          : site === 'FreeGOGPCGames'
-                          ? 'GOG'
-                          : 'GameDrive'}: {count}
-                        </span>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {filteredResults.map((game) => (
-                <GameCard key={game.id} game={game} />
-              ))}
-            </div>
-            <div className="text-center text-gray-400 text-sm mt-4">
-              Showing {filteredResults.length} search results
-            </div>
-          </div>
-        )}
-
-        {/* Empty State for Search Results */}
-        {hasSearched && filteredResults.length === 0 && !loading && !error && (
-          <div className="text-center text-gray-400 py-12">
-            <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No games found for your search</p>
-            <button
-              onClick={clearSearch}
-              className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
-            >
-              View Recent Uploads
-            </button>
-          </div>
-        )}
-
-        {/* Empty State for Initial Load */}
-        {!hasSearched && recentUploads.length === 0 && !loadingRecent && (
-          <div className="text-center text-gray-400 py-12">
-            <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Search for games or check out recent uploads</p>
-          </div>
-        )}
-
-        {/* 🔗 Other Projects Section */}
-        <div className="max-w-4xl mx-auto mt-16">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">
-            Other Projects
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <a
-              href="https://pdbypass.a7a8524.workers.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
-            >
-              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
-                Pixeldrain Bypass
-              </h3>
-              <p className="text-sm text-gray-300">
-                Remove Pixeldrain download limits with a Cloudflare Worker proxy.
-              </p>
-            </a>
-
-            <a
-              href="https://cfrss.a7a8524.workers.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:bg-white/20 transition"
-            >
-              <h3 className="text-lg font-semibold text-cyan-400 mb-2">
-                RSS Cloudflare Bypass
-              </h3>
-              <p className="text-sm text-gray-300">
-                Use FlareSolverr via a Cloudflare Worker to fetch RSS feeds behind CF protection.
-              </p>
-            </a>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-12 text-gray-400 text-sm">
-          <p>Powered by Cloudflare Workers • Search across multiple game sources</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default GameSearchApp;
+              </div
