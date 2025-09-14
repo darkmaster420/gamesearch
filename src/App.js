@@ -557,7 +557,7 @@ return (
 			</div>
 
 			{/* Sticky Search Bar */}
-			<div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900/95 backdrop-blur-md border-b border-white/10">
+					<div className="backdrop-blur-md border-b border-white/10">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Search Input + Sort Dropdown */}
