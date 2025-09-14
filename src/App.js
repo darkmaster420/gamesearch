@@ -51,14 +51,6 @@ const GameSearchApp = () => {
 	const [hideAdblockNotice,
 		setHideAdblockNotice] = useState(false);
 
-	const [theme,
-		setTheme] = useState(() => {
-			if (typeof window !== "undefined") {
-				return localStorage.getItem("theme") || "system";
-			}
-			return "system";
-		});
-
 	// Url state management
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -105,18 +97,6 @@ const GameSearchApp = () => {
 		}
 	},
 		[]);
-
-	// Use dark mode
-	useEffect(() => {
-		if (theme === "system") {
-			const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-			document.documentElement.classList.toggle("dark", prefersDark);
-		} else {
-			document.documentElement.classList.toggle("dark", theme === "dark");
-		}
-		localStorage.setItem("theme", theme);
-	},
-		[theme]);
 
 	// Fetch recent uploads on load
 	useEffect(() => {
@@ -568,19 +548,6 @@ return (
 		)}
 		<div className="container mx-auto px-4 py-8">
 
-			{/* 🔘 Theme Switcher */}
-			<div className="absolute top-4 right-4">
-				<select
-					value={theme}
-					onChange={(e) => setTheme(e.target.value)}
-					className="px-3 py-1 bg-white/10 text-sm text-white rounded-lg border border-white/20"
-					>
-					<option value="system">System</option>
-					<option value="light">Light</option>
-					<option value="dark">Dark</option>
-				</select>
-			</div>
-
 			{/* Header */}
 			<div className="text-center mb-8">
 				<h1 className="text-4xl font-bold text-white mb-2">Game Search</h1>
@@ -590,10 +557,10 @@ return (
 			</div>
 
 			{/* Sticky Search Bar */}
-			<div className="sticky top-0 z-50 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900/95 backdrop-blur-md border-b border-white/10">
+			<div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900/95 backdrop-blur-md border-b border-white/10">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
-						{/* Search Input + Sort Dropdown (your updated version goes here) */}
+						{/* Search Input + Sort Dropdown */}
 						<div className="relative flex items-center">
 							<Search className="absolute left-4 h-5 w-5 text-gray-400" />
 							<input
