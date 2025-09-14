@@ -556,8 +556,8 @@ return (
 				</p>
 			</div>
 
-			{/* Sticky Search Bar */}
-					<div className="backdrop-blur-md border-b border-white/10">
+			// Search Bar section - Remove the border-b class
+			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Search Input + Sort Dropdown */}
@@ -572,7 +572,6 @@ return (
 							placeholder="Search for games..."
 							className="w-full pl-12 pr-36 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
-
 						{/* Right side controls (clear + sort) */}
 						<div className="absolute right-3 flex items-center gap-2">
 							{hasSearched && (
@@ -596,7 +595,6 @@ return (
 							</select>
 						</div>
 					</div>
-
 					{/* Search button */}
 					<div className="text-center">
 						<button
@@ -612,8 +610,9 @@ return (
 			</div>
 		</div>
 
-		{/* Site Filter */}
-		<div className="flex flex-wrap gap-3 justify-center items-center">
+		{/* Site Filter - Add margin-top for proper spacing */}
+		<div className="flex flex-wrap gap-3 justify-center items-center mt-6">
+			{/* Added mt-6 */}
 			{[{
 				value: 'all',
 				label: 'All Sites',
@@ -642,7 +641,6 @@ return (
 						className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
 						siteFilter === option.value
 						? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`: 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
-
 						}`}
 						>
 						<Filter className="inline w-4 h-4 mr-2" />
