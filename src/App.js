@@ -10,7 +10,8 @@ import {
 	Loader,
 	Filter,
 	X,
-	Clock
+	Clock,
+	Copy
 } from 'lucide-react';
 
 const WORKER_URL = 'https://gameapi.a7a8524.workers.dev'; // Replace with your actual worker URL
@@ -256,8 +257,8 @@ const GameSearchApp = () => {
 		if (!service) return '💾';
 		const serviceLower = service.toLowerCase();
 		if (serviceLower.includes('magnet') || serviceLower.includes('torrent')) return '🧲';
-		if (serviceLower.includes('mega')) return '🟦';
-		if (serviceLower.includes('mediafire')) return '🔥';
+		if (serviceLower.includes('mega')) return '🔴';
+		if (serviceLower.includes('mediafire')) return '🟦';
 		if (serviceLower.includes('google')) return '🔗';
 		return '💾';
 	};
@@ -415,6 +416,25 @@ const GameSearchApp = () => {
 												? `${resolved.service} Link`: 'Decrypt Link': link.text || link.service}
 											</span>
 											<ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
+
+											<button
+												type="button"
+												onClick={(e) => {
+													e.preventDefault();
+													if (isCrypt) {
+														if (resolved) {
+															navigator.clipboard.writeText(resolved.resolvedUrl);
+														} else {
+															navigator.clipboard.writeText(link.url);
+														}
+													} else {
+														navigator.clipboard.writeText(link.url);
+													}
+												}}
+												className="ml-2 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400 hover:text-cyan-300"
+												>
+												<Copy className="w-4 h-4" />
+											</button>
 										</a>
 									);
 								})}
@@ -708,11 +728,20 @@ return (
 							<div className="text-right">
 								<div className="flex flex-wrap gap-3 justify-end">
 									{Object.entries(stats).map(([site, count]) => (
-										<span key={site} className={`px-3 py-1 rounded-full text-xs font-bold ${
+										<span
+											key={site}
+											className={`px-3 py-1 rounded-full text-xs font-bold ${
 											site === 'SkidrowReloaded'
-											? 'bg-red-500/20 text-red-300 border border-red-400/50': 'bg-green-500/20 text-green-300 border border-green-400/50'
-											}`}>
-											{site === 'SkidrowReloaded' ? 'Skidrow': 'GOG'}: {count}
+											? 'bg-red-500/20 text-red-300 border border-red-400/50': site === 'FreeGOGPCGames'
+											? 'bg-green-500/20 text-green-300 border border-green-400/50': site === 'GameDrive'
+											? 'bg-purple-500/20 text-purple-300 border border-purple-400/50': 'bg-gray-500/20 text-gray-300 border border-gray-400/50'
+											}`}
+											>
+											{site === 'SkidrowReloaded'
+											? 'Skidrow': site === 'FreeGOGPCGames'
+											? 'FreeGOG': site === 'GameDrive'
+											? 'GameDrive': site}
+											: {count}
 										</span>
 									))}
 								</div>
