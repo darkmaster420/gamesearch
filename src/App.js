@@ -560,7 +560,6 @@ return (
 				</p>
 			</div>
 
-			// Search Bar section - Remove the border-b class
 			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
