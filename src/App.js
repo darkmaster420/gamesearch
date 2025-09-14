@@ -934,7 +934,6 @@ return (
 </p>
 </div>
 </div>
-</div>
 );
 };
 
