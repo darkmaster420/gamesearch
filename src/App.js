@@ -137,6 +137,13 @@ const GameSearchApp = () => {
 			results.length,
 			recentUploads.length]);
 
+	useEffect(() => {
+		if (hasSearched) {
+			searchGames();
+		}
+	},
+		[sortOrder]);
+
 	const saveToHistory = (searchTerm) => {
 		const newHistory = [searchTerm, ...searchHistory.filter((h) => h !== searchTerm)].slice(0,
 			10);
@@ -177,21 +184,18 @@ const GameSearchApp = () => {
 
 	const searchGames = async (searchQuery = query) => {
 		if (!searchQuery.trim()) return;
-
 		setLoading(true);
 		setHasSearched(true);
 		setError('');
 		setRecentUploads([]);
-
 		try {
 			const params = new URLSearchParams( {
 				search: searchQuery.trim(),
 				site: siteFilter,
+				sort: sortOrder, // Add this line to include sort order
 			});
-
 			const response = await fetch(`${WORKER_URL}?${params}`);
 			const data = await response.json();
-
 			if (data.success) {
 				setResults(data.results || []);
 				setStats(data.siteStats || {});
@@ -556,6 +560,7 @@ return (
 				</p>
 			</div>
 
+			// Search Bar section - Remove the border-b class
 			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
