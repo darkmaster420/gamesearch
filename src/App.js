@@ -342,7 +342,7 @@ const GameSearchApp = () => {
                         onClick={isCrypt ? (e) => handleCryptClick(e, link.url) : undefined}
                         target={isCrypt ? undefined : '_blank'}
                         rel={isCrypt ? undefined : 'noopener noreferrer'}
-                        className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors"
+                        className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors bg-white/5 backdrop-blur-sm border border-white/10 hover:border-cyan-400/50"
                       >
                         <span className="text-lg flex-shrink-0">
                           {isCrypt
@@ -351,7 +351,7 @@ const GameSearchApp = () => {
                               : '🔒'
                             : getServiceIcon(link.service)}
                         </span>
-                        <span className="truncate flex-1 font-medium">
+                        <span className="truncate flex-1 font-medium text-white group-hover/link:text-cyan-400 transition-colors">
                           {isCrypt
                             ? resolved
                               ? `${resolved.service} Link`
