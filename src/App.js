@@ -611,6 +611,7 @@ const filteredResults = React.useMemo(() => {
 			skidrow: 'SkidrowReloaded',
 			freegog: 'FreeGOGPCGames',
 			gamedrive: 'GameDrive',
+			steamrip: 'SteamRip',
 		};
 		currentResults = currentResults.filter((game) => game.source === sourceMap[siteFilter]);
 	}
@@ -676,7 +677,7 @@ return (
 				</div>
 			</div>
 		)}
-		
+
 		<div className="container mx-auto px-4 py-8">
 			{/* Header */}
 			<div className="text-center mb-8">
@@ -688,7 +689,7 @@ return (
 			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
-						
+
 						{/* Search Input + Sort Dropdown */}
 						<div className="relative flex items-center">
 							<Search className="absolute left-4 h-5 w-5 text-gray-400" />
@@ -701,7 +702,7 @@ return (
 							placeholder="Search for games..."
 							className="w-full pl-12 pr-36 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
-							
+
 						{/* Right side controls (clear + sort) */}
 						<div className="absolute right-3 flex items-center gap-2">
 							{hasSearched && (
@@ -763,9 +764,8 @@ return (
 		</div>
 	</div>
 
-	{/* Site Filter - Add margin-top for proper spacing */}
+	{/* Site Filter */}
 	<div className="flex flex-wrap gap-3 justify-center items-center mt-6">
-		{/* Added mt-6 */}
 		{[{
 			value: 'all',
 			label: 'All Sites',
@@ -785,6 +785,11 @@ return (
 				value: 'gamedrive',
 				label: 'GameDrive',
 				color: 'from-blue-500 to-cyan-500'
+			},
+			{
+				value: 'steamrip',
+				label: 'SteamRip',
+				color: 'from-yellow-500 to-amber-500'
 			},
 		].map(option => (
 				<button
@@ -948,13 +953,15 @@ hasSearched && filteredResults.length > 0 && (
 									site === 'SkidrowReloaded'
 									? 'bg-red-500/20 text-red-300 border border-red-400/50': site === 'FreeGOGPCGames'
 									? 'bg-green-500/20 text-green-300 border border-green-400/50': site === 'GameDrive'
-									? 'bg-purple-500/20 text-purple-300 border border-purple-400/50': 'bg-gray-500/20 text-gray-300 border border-gray-400/50'
+									? 'bg-purple-500/20 text-purple-300 border border-purple-400/50': site === 'SteamRip'
+									? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/50': 'bg-gray-500/20 text-gray-300 border border-gray-400/50'
 									}`}
 									>
 									{site === 'SkidrowReloaded'
 									? 'Skidrow': site === 'FreeGOGPCGames'
 									? 'FreeGOG': site === 'GameDrive'
-									? 'GameDrive': site}
+									? 'GameDrive': site === 'SteamRip'
+									? 'SteamRip': site}
 									: {count}
 								</span>
 							))}
