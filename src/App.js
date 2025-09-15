@@ -426,7 +426,12 @@ const GameSearchApp = () => {
 		const linksToShow = showAllLinks ? game.downloadLinks: game.downloadLinks.slice(0, 10);
 
 		return (
-			<div className="group">
+			<a
+				href={game.link}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="group block"
+				>
 				<div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
 					<div className="relative h-64 overflow-hidden">
 						{shouldShowImage ? (
@@ -485,18 +490,17 @@ const GameSearchApp = () => {
 					</p>
 					<div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
 						<span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
-						<a
-							href={game.link}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="flex items-center gap-1 hover:text-cyan-400 transition-colors"
-							>
-							<ExternalLink className="w-3 h-3" /> Source
-						</a>
+						<div className="flex items-center gap-1 text-cyan-400">
+							<ExternalLink className="w-3 h-3" />
+							<span>View Source</span>
+						</div>
 					</div>
 				</div>
 				{game.downloadLinks && game.downloadLinks.length > 0 && (
-					<div className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+					<div
+						className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50"
+						onClick={(e) => e.stopPropagation()} // Prevent card click when clicking download section
+						>
 						<div className="p-6 space-y-3">
 							<h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
 								<Download className="w-4 h-4 text-cyan-400" /> Download Options
@@ -508,12 +512,9 @@ const GameSearchApp = () => {
 									const resolved = hash ? decryptedLinks[hash]: null;
 
 									return (
-										<a
+										<div
 											key={index}
-											href={link.url}
-											onClick={isCrypt ? (e) => handleCryptClick(e, link.url): undefined}
-											target={isCrypt ? undefined: '_blank'}
-											rel={isCrypt ? undefined: 'noopener noreferrer'}
+											onClick={(e) => e.stopPropagation()} // Prevent card click when clicking download links
 											className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors bg-white/5 backdrop-blur-sm border border-white/10 hover:border-cyan-400/50"
 											>
 											<span className="text-lg flex-shrink-0">
@@ -526,12 +527,10 @@ const GameSearchApp = () => {
 												? resolved
 												? `${resolved.service} Link`: 'Decrypt Link': link.text || link.service}
 											</span>
-											<ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
-
 											<button
 												type="button"
 												onClick={(e) => {
-													e.preventDefault();
+													e.stopPropagation();
 													if (isCrypt) {
 														if (resolved) {
 															// Use either resolvedUrl or url
@@ -548,13 +547,16 @@ const GameSearchApp = () => {
 												>
 												<Copy className="w-4 h-4" />
 											</button>
-										</a>
+										</div>
 									);
 								})}
 							</div>
 							{game.downloadLinks.length > 10 && (
 								<button
-									onClick={() => setShowAllLinks(!showAllLinks)}
+									onClick={(e) => {
+										e.stopPropagation();
+										setShowAllLinks(!showAllLinks);
+									}}
 									className="w-full text-xs text-cyan-400 hover:text-cyan-300 text-center py-2 mt-2 bg-gray-700/30 rounded-lg border border-gray-600/30 transition"
 									>
 									{showAllLinks
@@ -565,7 +567,7 @@ const GameSearchApp = () => {
 					</div>
 				)}
 			</div>
-		</div>
+		</a>
 	);
 };
 
