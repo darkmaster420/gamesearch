@@ -341,28 +341,70 @@ const GameSearchApp = () => {
 	const handleCryptClick = async (e, cryptUrl) => {
 		e.preventDefault();
 		const hash = cryptUrl.split('#')[1];
-		if (!hash) return;
+		if (!hash) {
+			console.error('No hash found in crypt URL:', cryptUrl);
+			alert('Invalid crypt link format');
+			return;
+		}
 
+		// Check if we already have this link decrypted
 		if (decryptedLinks[hash]) {
-			window.open(decryptedLinks[hash].resolvedUrl, '_blank');
+			console.log('Using cached decrypted link for hash:', hash);
+			// Use either resolvedUrl or url depending on what's available
+			const url = decryptedLinks[hash].resolvedUrl || decryptedLinks[hash].url;
+			window.open(url, '_blank');
 			return;
 		}
 
 		try {
-			const resp = await fetch(`${WORKER_URL}/decrypt?hash=${encodeURIComponent(hash)}`);
-			const data = await resp.json();
+			console.log('Decrypting hash:', hash);
+			const url = `${WORKER_URL}/decrypt?hash=${encodeURIComponent(hash)}`;
+			console.log('Request URL:', url);
 
-			if (data.success && data.resolvedUrl) {
+			const resp = await fetch(url);
+			console.log('Response status:', resp.status);
+
+			if (!resp.ok) {
+				const errorText = await resp.text();
+				console.error('Decrypt request failed:', errorText);
+				alert(`Decryption failed: ${resp.status} ${resp.statusText}`);
+				return;
+			}
+
+			const data = await resp.json();
+			console.log('Decrypt response:', data);
+
+			if (data.success) {
+				// Get the URL from either resolvedUrl or url field
+				const resolvedUrl = data.resolvedUrl || data.url;
+				const service = data.service || 'Unknown';
+
+				if (!resolvedUrl) {
+					console.error('No URL found in response:', data);
+					alert('No URL found in decryption response');
+					return;
+				}
+
+				// Cache the decrypted link with both fields for compatibility
 				setDecryptedLinks((prev) => ({
-					...prev, [hash]: data
+					...prev,
+					[hash]: {
+						resolvedUrl: resolvedUrl,
+						url: resolvedUrl, // Include both for compatibility
+						service: service,
+						timestamp: Date.now()
+					}
 				}));
-				window.open(data.resolvedUrl, '_blank');
+
+				console.log('Opening resolved URL:', resolvedUrl);
+				window.open(resolvedUrl, '_blank');
 			} else {
+				console.error('Decryption failed:', data.error);
 				alert(data.error || 'Failed to decrypt link');
 			}
 		} catch (err) {
 			console.error('Decrypt error:', err);
-			alert('Error decrypting link');
+			alert(`Error decrypting link: ${err.message}`);
 		}
 	};
 
@@ -492,7 +534,9 @@ const GameSearchApp = () => {
 													e.preventDefault();
 													if (isCrypt) {
 														if (resolved) {
-															navigator.clipboard.writeText(resolved.resolvedUrl);
+															// Use either resolvedUrl or url
+															const urlToCopy = resolved.resolvedUrl || resolved.url;
+															navigator.clipboard.writeText(urlToCopy);
 														} else {
 															navigator.clipboard.writeText(link.url);
 														}
