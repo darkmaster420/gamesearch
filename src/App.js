@@ -14,6 +14,24 @@ import {
 	Copy
 } from 'lucide-react';
 
+const setCookie = (name, value, days) => {
+	const date = new Date();
+	date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+	const expires = `expires=${date.toUTCString()}`;
+	document.cookie = `${name}=${value};${expires};path=/`;
+};
+
+const getCookie = (name) => {
+	const nameEQ = name + "=";
+	const ca = document.cookie.split(';');
+	for (let i = 0; i < ca.length; i++) {
+		let c = ca[i];
+		while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+		if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+	}
+	return null;
+};
+
 const WORKER_URL = 'https://gameapi.a7a8524.workers.dev'; // Replace with your actual worker URL
 
 const GameSearchApp = () => {
@@ -50,6 +68,20 @@ const GameSearchApp = () => {
 
 	const [hideAdblockNotice,
 		setHideAdblockNotice] = useState(false);
+
+	// Add this useEffect to set the cookie when the notice is closed
+	useEffect(() => {
+		if (hideAdblockNotice) {
+			// Set cookie to expire in 30 days
+			setCookie('adblockNoticeClosed', 'true', 30);
+		}
+	},
+		[hideAdblockNotice]);
+
+	const [hideAdblockNotice, setHideAdblockNotice] = useState(() => {
+		// Check if the cookie exists and return true if it does, false otherwise
+		return getCookie('hideAdblockNotice') === 'true';
+	});
 
 	// Url state management
 	useEffect(() => {
@@ -137,6 +169,13 @@ const GameSearchApp = () => {
 			results.length,
 			recentUploads.length]);
 
+	useEffect(() => {
+		if (hasSearched) {
+			searchGames();
+		}
+	},
+		[sortOrder]);
+
 	const saveToHistory = (searchTerm) => {
 		const newHistory = [searchTerm, ...searchHistory.filter((h) => h !== searchTerm)].slice(0,
 			10);
@@ -177,21 +216,18 @@ const GameSearchApp = () => {
 
 	const searchGames = async (searchQuery = query) => {
 		if (!searchQuery.trim()) return;
-
 		setLoading(true);
 		setHasSearched(true);
 		setError('');
 		setRecentUploads([]);
-
 		try {
 			const params = new URLSearchParams( {
 				search: searchQuery.trim(),
 				site: siteFilter,
+				sort: sortOrder, // Add this line to include sort order
 			});
-
 			const response = await fetch(`${WORKER_URL}?${params}`);
 			const data = await response.json();
-
 			if (data.success) {
 				setResults(data.results || []);
 				setStats(data.siteStats || {});
@@ -539,7 +575,10 @@ return (
 					⚠️ For safety, always use a good adblocker like <strong>uBlock Origin</strong> when browsing external links.
 				</span>
 				<button
-					onClick={() => setHideAdblockNotice(true)}
+					onClick={() => {
+						setHideAdblockNotice(true);
+						setCookie('hideAdblockNotice', 'true', 30); // Set cookie for 30 days
+					}}
 					className="ml-4 text-white hover:text-gray-200"
 					>
 					<X className="w-4 h-4" />
@@ -556,8 +595,7 @@ return (
 				</p>
 			</div>
 
-			{/* Search Bar */}
-			<div className="backdrop-blur-md border-b border-white/10">
+			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Search Input + Sort Dropdown */}
@@ -572,7 +610,6 @@ return (
 							placeholder="Search for games..."
 							className="w-full pl-12 pr-36 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
-
 						{/* Right side controls (clear + sort) */}
 						<div className="absolute right-3 flex items-center gap-2">
 							{hasSearched && (
@@ -596,7 +633,6 @@ return (
 							</select>
 						</div>
 					</div>
-
 					{/* Search button */}
 					<div className="text-center">
 						<button
@@ -612,8 +648,9 @@ return (
 			</div>
 		</div>
 
-		{/* Site Filter */}
-		<div className="flex flex-wrap gap-3 justify-center items-center">
+		{/* Site Filter - Add margin-top for proper spacing */}
+		<div className="flex flex-wrap gap-3 justify-center items-center mt-6">
+			{/* Added mt-6 */}
 			{[{
 				value: 'all',
 				label: 'All Sites',
@@ -642,7 +679,6 @@ return (
 						className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
 						siteFilter === option.value
 						? `bg-gradient-to-r ${option.color} text-white shadow-lg shadow-${option.color.split('-')[1]}-500/25`: 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/20'
-
 						}`}
 						>
 						<Filter className="inline w-4 h-4 mr-2" />
