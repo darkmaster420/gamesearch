@@ -340,6 +340,15 @@ const GameSearchApp = () => {
 	// handle crypt link clicks & caching
 	const handleCryptClick = async (e, cryptUrl) => {
 		e.preventDefault();
+
+		// Check if it's a filecrypt.co link
+		if (cryptUrl.includes('filecrypt.co')) {
+			// For FileCrypt links, just open the page in a new tab
+			window.open(cryptUrl, '_blank');
+			return;
+		}
+
+		// Original crypt.cybar.xyz handling
 		const hash = cryptUrl.split('#')[1];
 		if (!hash) {
 			console.error('No hash found in crypt URL:', cryptUrl);
@@ -350,7 +359,6 @@ const GameSearchApp = () => {
 		// Check if we already have this link decrypted
 		if (decryptedLinks[hash]) {
 			console.log('Using cached decrypted link for hash:', hash);
-			// Use either resolvedUrl or url depending on what's available
 			const url = decryptedLinks[hash].resolvedUrl || decryptedLinks[hash].url;
 			window.open(url, '_blank');
 			return;
@@ -508,32 +516,56 @@ const GameSearchApp = () => {
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 								{linksToShow.map((link, index) => {
 									const isCrypt = link.type === 'crypt';
+									const isFileCrypt = link.type === 'filecrypt';
 									const hash = isCrypt ? link.url.split('#')[1]: null;
-									const resolved = hash ? decryptedLinks[hash]: null;
+									const filecryptId = isFileCrypt ? link.id: null;
+									const resolved = hash ? decryptedLinks[hash]: (filecryptId ? decryptedLinks[filecryptId]: null);
 
 									return (
 										<div
 											key={index}
-											onClick={(e) => e.stopPropagation()} // Prevent card click when clicking download links
-											className="group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors bg-white/5 backdrop-blur-sm border border-white/10 hover:border-cyan-400/50"
+											onClick={(e) => {
+												if (isCrypt || isFileCrypt) {
+													e.stopPropagation(); // Prevent card click when clicking download links
+													if (isCrypt) {
+														handleCryptClick(e, link.url);
+													} else if (isFileCrypt) {
+														// For FileCrypt, just open the page in a new tab
+														window.open(link.url, '_blank');
+													}
+												}
+											}}
+											className={`group/link flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/30 transition-colors bg-white/5 backdrop-blur-sm border border-white/10 hover:border-cyan-400/50 ${
+											isFileCrypt && link.requiresCaptcha ? 'opacity-75': ''
+											}`}
 											>
 											<span className="text-lg flex-shrink-0">
-												{isCrypt
+												{isCrypt || isFileCrypt
 												? resolved
-												? getServiceIcon(resolved.service): '🔒': getServiceIcon(link.service)}
+												? getServiceIcon(resolved.service): isFileCrypt
+												? '🔒': '🔒': getServiceIcon(link.service)}
 											</span>
 											<span className="truncate flex-1 font-medium text-white group-hover/link:text-cyan-400 transition-colors">
-												{isCrypt
+												{isCrypt || isFileCrypt
 												? resolved
-												? `${resolved.service} Link`: 'Decrypt Link': link.text || link.service}
+												? `${resolved.service} Link`: isFileCrypt
+												? link.requiresCaptcha
+												? 'FileCrypt (CAPTCHA Required)': 'FileCrypt Link': 'Decrypt Link': link.text || link.service}
 											</span>
+											{isFileCrypt && link.requiresCaptcha && (
+												<span className="text-xs bg-yellow-500 text-yellow-900 px-2 py-1 rounded-full">
+													CAPTCHA
+												</span>
+											)}
+											{!(isCrypt || isFileCrypt) && (
+												<ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
+											)}
 											<button
 												type="button"
 												onClick={(e) => {
 													e.stopPropagation();
-													if (isCrypt) {
+													if (isCrypt || isFileCrypt) {
 														if (resolved) {
-															// Use either resolvedUrl or url
 															const urlToCopy = resolved.resolvedUrl || resolved.url;
 															navigator.clipboard.writeText(urlToCopy);
 														} else {
@@ -629,8 +661,23 @@ return (
 				</button>
 			</div>
 		)}
-		<div className="container mx-auto px-4 py-8">
 
+		{/* 📝 FileCrypt CAPTCHA Notice */}
+		{siteFilter === 'steamrip' && (
+			<div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-4 mb-6">
+				<div className="flex items-center gap-2 text-yellow-300">
+					<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+						<path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+					</svg>
+					<span>
+						<strong>Note:</strong> Some links from SteamRip are protected by FileCrypt and require solving a CAPTCHA manually.
+						Clicking these links will open the FileCrypt page in a new tab where you can solve the CAPTCHA and get the download links.
+					</span>
+				</div>
+			</div>
+		)}
+		
+		<div className="container mx-auto px-4 py-8">
 			{/* Header */}
 			<div className="text-center mb-8">
 				<h1 className="text-4xl font-bold text-white mb-2">Game Search</h1>
@@ -638,10 +685,10 @@ return (
 					Search across multiple game sources
 				</p>
 			</div>
-
 			<div className="backdrop-blur-md">
 				<div className="max-w-4xl mx-auto px-4 py-4">
 					<form onSubmit={handleSubmit} className="space-y-4">
+						
 						{/* Search Input + Sort Dropdown */}
 						<div className="relative flex items-center">
 							<Search className="absolute left-4 h-5 w-5 text-gray-400" />
@@ -654,6 +701,7 @@ return (
 							placeholder="Search for games..."
 							className="w-full pl-12 pr-36 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
+							
 						{/* Right side controls (clear + sort) */}
 						<div className="absolute right-3 flex items-center gap-2">
 							{hasSearched && (
@@ -677,7 +725,6 @@ return (
 							</select>
 						</div>
 					</div>
-
 					{/* Refine Filter */}
 					{hasSearched && (
 						<div className="relative flex items-center">
