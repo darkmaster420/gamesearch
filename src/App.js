@@ -67,7 +67,10 @@ const GameSearchApp = () => {
 	const searchInputRef = useRef(null);
 
 	const [hideAdblockNotice,
-		setHideAdblockNotice] = useState(false);
+		setHideAdblockNotice] = useState(() => {
+			// Check if the cookie exists and return true if it does, false otherwise
+			return getCookie('hideAdblockNotice') === 'true';
+		});
 
 	// Add this useEffect to set the cookie when the notice is closed
 	useEffect(() => {
@@ -77,11 +80,6 @@ const GameSearchApp = () => {
 		}
 	},
 		[hideAdblockNotice]);
-
-	const [hideAdblockNotice, setHideAdblockNotice] = useState(() => {
-		// Check if the cookie exists and return true if it does, false otherwise
-		return getCookie('hideAdblockNotice') === 'true';
-	});
 
 	// Url state management
 	useEffect(() => {
@@ -577,7 +575,7 @@ return (
 				<button
 					onClick={() => {
 						setHideAdblockNotice(true);
-						setCookie('hideAdblockNotice', 'true', 30); // Set cookie for 30 days
+						setCookie('hideAdblockNotice', 'true', 30); // Changed from adblockNoticeClosed to hideAdblockNotice
 					}}
 					className="ml-4 text-white hover:text-gray-200"
 					>
