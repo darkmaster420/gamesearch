@@ -434,12 +434,7 @@ const GameSearchApp = () => {
 		const linksToShow = showAllLinks ? game.downloadLinks: game.downloadLinks.slice(0, 10);
 
 		return (
-			<a
-				href={game.link}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="group block"
-				>
+			<div className="group block">
 				<div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-3xl border border-gray-700/50 overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20 hover:from-gray-700/80 hover:to-gray-800/80">
 					<div className="relative h-64 overflow-hidden">
 						{shouldShowImage ? (
@@ -498,16 +493,20 @@ const GameSearchApp = () => {
 					</p>
 					<div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-700/50">
 						<span className="flex items-center gap-1">📅 {formatDate(game.date)}</span>
-						<div className="flex items-center gap-1 text-cyan-400">
+						<a
+							href={game.link}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors"
+							>
 							<ExternalLink className="w-3 h-3" />
 							<span>View Source</span>
-						</div>
+						</a>
 					</div>
 				</div>
 				{game.downloadLinks && game.downloadLinks.length > 0 && (
 					<div
 						className="border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50"
-						onClick={(e) => e.stopPropagation()} // Prevent card click when clicking download section
 						>
 						<div className="p-6 space-y-3">
 							<h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
@@ -558,7 +557,15 @@ const GameSearchApp = () => {
 												</span>
 											)}
 											{!(isCrypt || isFileCrypt) && (
-												<ExternalLink className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400" />
+												<a
+													href={link.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="ml-2 opacity-0 group-hover/link:opacity-100 transition-opacity text-cyan-400"
+													onClick={(e) => e.stopPropagation()}
+													>
+													<ExternalLink className="w-4 h-4" />
+												</a>
 											)}
 											<button
 												type="button"
@@ -599,7 +606,7 @@ const GameSearchApp = () => {
 					</div>
 				)}
 			</div>
-		</a>
+		</div>
 	);
 };
 
