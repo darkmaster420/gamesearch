@@ -610,7 +610,8 @@ const GameSearchApp = () => {
 	);
 };
 
-const filteredResults = React.useMemo(() => {
+// For search results (includes refine query)
+const filteredSearchResults = React.useMemo(() => {
 	let currentResults = results;
 
 	if (siteFilter !== 'all') {
@@ -623,6 +624,7 @@ const filteredResults = React.useMemo(() => {
 		currentResults = currentResults.filter((game) => game.source === sourceMap[siteFilter]);
 	}
 
+	// Apply refine query only to search results
 	if (refineQuery.trim()) {
 		const lowerCaseRefineQuery = refineQuery.trim().toLowerCase();
 		currentResults = currentResults.filter(
@@ -648,7 +650,38 @@ const filteredResults = React.useMemo(() => {
 },
 	[results,
 		siteFilter,
-		refineQuery]);
+		refineQuery,
+		sortOrder]);
+
+// For recent uploads (no refine query)
+const filteredRecentUploads = React.useMemo(() => {
+	let currentResults = recentUploads;
+
+	if (siteFilter !== 'all') {
+		const sourceMap = {
+			skidrow: 'SkidrowReloaded',
+			freegog: 'FreeGOGPCGames',
+			gamedrive: 'GameDrive',
+			steamrip: 'SteamRip',
+		};
+		currentResults = currentResults.filter((game) => game.source === sourceMap[siteFilter]);
+	}
+
+	// Sorting (no refine query for recent uploads)
+	if (sortOrder === 'date') {
+		currentResults = [...currentResults].sort((a, b) => new Date(b.date) - new Date(a.date));
+	} else if (sortOrder === 'title') {
+		currentResults = [...currentResults].sort((a, b) => a.title.localeCompare(b.title));
+	} else if (sortOrder === 'size') {
+		currentResults = [...currentResults].sort((a, b) => (b.size || 0) - (a.size || 0));
+	}
+	// relevance = default
+
+	return currentResults;
+},
+	[recentUploads,
+		siteFilter,
+		sortOrder]);
 
 return (
 	<div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
@@ -875,7 +908,7 @@ error && (
 /* Recent Uploads Section - Show when no search has been made */
 }
 {
-!hasSearched && (
+!hasSearched && recentUploads.length > 0 && (
 	<div className="max-w-7xl mx-auto">
 		<div className="mb-8">
 			<div className="bg-gradient-to-r from-purple-600/20 to-orange-600/20 backdrop-blur-md rounded-2xl border border-purple-500/30 p-6">
@@ -914,23 +947,32 @@ error && (
 					Loading recent uploads...
 				</p>
 			</div>
-		): recentUploads.length > 0 ? (
+		): filteredRecentUploads.length > 0 ? (
 			<>
 				<div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-					{recentUploads.map((game) => (
+					{filteredRecentUploads.map((game) => (
 						<GameCard key={game.id} game={game} />
 					))}
 				</div>
 				<div className="text-center text-gray-400 text-sm mt-4">
-					Showing {recentUploads.length} recent uploads
+					Showing {filteredRecentUploads.length} recent uploads
 				</div>
 			</>
 		): (
 			<div className="text-center text-gray-400 py-12">
 				<Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
 				<p>
-					No recent uploads available
+					{siteFilter === 'all'
+					? 'No recent uploads available': `No recent uploads available for ${siteFilter === 'skidrow' ? 'Skidrow': siteFilter === 'freegog' ? 'FreeGOG': siteFilter === 'gamedrive' ? 'GameDrive': 'SteamRip'}`}
 				</p>
+				{siteFilter !== 'all' && (
+					<button
+						onClick={() => setSiteFilter('all')}
+						className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
+						>
+						Show all sites
+					</button>
+				)}
 			</div>
 		)}
 	</div>
@@ -940,7 +982,7 @@ error && (
 /* Search Results - Show when search has been made */
 }
 {
-hasSearched && filteredResults.length > 0 && (
+hasSearched && filteredSearchResults.length > 0 && (
 	<div className="max-w-7xl mx-auto">
 		<div className="mb-8">
 			<div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl border border-blue-500/30 p-6">
@@ -948,7 +990,7 @@ hasSearched && filteredResults.length > 0 && (
 					<div>
 						<h2 className="text-2xl font-bold text-white mb-2">Search Results</h2>
 						<p className="text-blue-200">
-							Found {filteredResults.length} games
+							Found {filteredSearchResults.length} games
 						</p>
 					</div>
 					<div className="text-right">
@@ -979,12 +1021,12 @@ hasSearched && filteredResults.length > 0 && (
 		</div>
 
 		<div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-			{filteredResults.map((game) => (
+			{filteredSearchResults.map((game) => (
 				<GameCard key={game.id} game={game} />
 			))}
 		</div>
 		<div className="text-center text-gray-400 text-sm mt-4">
-			Showing {filteredResults.length} search results
+			Showing {filteredSearchResults.length} search results
 		</div>
 	</div>
 )}
@@ -993,7 +1035,7 @@ hasSearched && filteredResults.length > 0 && (
 /* Empty State for Search Results */
 }
 {
-hasSearched && filteredResults.length === 0 && !loading && !error && (
+hasSearched && filteredSearchResults.length === 0 && !loading && !error && (
 	<div className="text-center text-gray-400 py-12">
 		<Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
 		<p>
